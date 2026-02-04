@@ -170,6 +170,30 @@ select:focus {
   display: none; /* Chrome/Safari */
 }
 
+.timetable-pause {
+  background-color: #e5e7eb;
+  color: #111827;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.12) 0,
+    rgba(0, 0, 0, 0.12) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.dark .timetable-pause {
+  background-color: #374151;
+  color: #f9fafb;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0,
+    rgba(255, 255, 255, 0.2) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
 @layer utilities {
   .line-clamp-1,
   .line-clamp-2,

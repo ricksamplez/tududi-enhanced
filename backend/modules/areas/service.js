@@ -3,7 +3,7 @@
 const _ = require('lodash');
 const areasRepository = require('./repository');
 const { PUBLIC_ATTRIBUTES } = require('./repository');
-const { validateName, validateUid } = require('./validation');
+const { validateName, validateUid, validateColor } = require('./validation');
 const { NotFoundError } = require('../../shared/errors');
 
 class AreasService {
@@ -34,12 +34,14 @@ class AreasService {
     /**
      * Create a new area.
      */
-    async create(userId, { name, description }) {
+    async create(userId, { name, description, color }) {
         const validatedName = validateName(name);
+        const validatedColor = validateColor(color);
 
         const area = await areasRepository.createForUser(userId, {
             name: validatedName,
             description,
+            color: validatedColor,
         });
 
         return _.pick(area, PUBLIC_ATTRIBUTES);
@@ -48,7 +50,7 @@ class AreasService {
     /**
      * Update an area.
      */
-    async update(userId, uid, { name, description }) {
+    async update(userId, uid, { name, description, color }) {
         validateUid(uid);
 
         const area = await areasRepository.findByUid(userId, uid);
@@ -64,6 +66,9 @@ class AreasService {
         }
         if (description !== undefined) {
             updateData.description = description;
+        }
+        if (color !== undefined) {
+            updateData.color = validateColor(color);
         }
 
         await areasRepository.update(area, updateData);

@@ -122,12 +122,14 @@ const habitsModule = require('./modules/habits');
 const inboxModule = require('./modules/inbox');
 const notesModule = require('./modules/notes');
 const notificationsModule = require('./modules/notifications');
+const planningModule = require('./modules/planning');
 const projectsModule = require('./modules/projects');
 const quotesModule = require('./modules/quotes');
 const searchModule = require('./modules/search');
 const sharesModule = require('./modules/shares');
 const tagsModule = require('./modules/tags');
 const tasksModule = require('./modules/tasks');
+const timetableModule = require('./modules/timetable');
 const telegramModule = require('./modules/telegram');
 const urlModule = require('./modules/url');
 const usersModule = require('./modules/users');
@@ -212,6 +214,8 @@ const registerApiRoutes = (basePath) => {
     app.use(basePath, searchModule.routes);
     app.use(basePath, viewsModule.routes);
     app.use(basePath, notificationsModule.routes);
+    app.use(basePath, timetableModule.routes);
+    app.use(basePath, planningModule.routes);
 };
 
 // Register routes at both /api and /api/v1 (if versioned) to maintain backwards compatibility

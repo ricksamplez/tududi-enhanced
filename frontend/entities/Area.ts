@@ -3,5 +3,6 @@ export interface Area {
     uid?: string;
     name: string;
     description?: string;
+    color?: string | null;
     active?: boolean;
 }
