@@ -117,6 +117,7 @@ const adminModule = require('./modules/admin');
 const areasModule = require('./modules/areas');
 const authModule = require('./modules/auth');
 const backupModule = require('./modules/backup');
+const calendarModule = require('./modules/calendar');
 const featureFlagsModule = require('./modules/feature-flags');
 const habitsModule = require('./modules/habits');
 const inboxModule = require('./modules/inbox');
@@ -206,6 +207,7 @@ const registerApiRoutes = (basePath) => {
     app.use(basePath, notesModule.routes);
     app.use(basePath, tagsModule.routes);
     app.use(basePath, usersModule.routes);
+    app.use(basePath, calendarModule.routes);
     app.use(basePath, inboxModule.routes);
     app.use(basePath, urlModule.routes);
     app.use(basePath, telegramModule.routes);
