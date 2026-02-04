@@ -39,6 +39,7 @@ const {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
+    validateDueTimeMinutes,
 } = require('./utils/validation');
 const {
     buildTaskAttributes,
@@ -343,6 +344,7 @@ router.post('/task', async (req, res) => {
                 taskAttributes.defer_until,
                 taskAttributes.due_date
             );
+            validateDueTimeMinutes(taskAttributes.due_time_minutes);
         } catch (error) {
             return res.status(400).json({ error: error.message });
         }
@@ -534,6 +536,7 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
                     : task.due_date;
 
             validateDeferUntilAndDueDate(finalDeferUntil, finalDueDate);
+            validateDueTimeMinutes(taskAttributes.due_time_minutes);
         } catch (error) {
             return res.status(400).json({ error: error.message });
         }

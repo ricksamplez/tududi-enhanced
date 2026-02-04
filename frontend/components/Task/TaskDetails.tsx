@@ -100,6 +100,7 @@ const TaskDetails: React.FC = () => {
     const [editedDueDate, setEditedDueDate] = useState<string>(
         task?.due_date || ''
     );
+    const [editedDueTime, setEditedDueTime] = useState<string>('');
     const [isEditingDeferUntil, setIsEditingDeferUntil] = useState(false);
     const [editedDeferUntil, setEditedDeferUntil] = useState<string>(
         task?.defer_until || ''
@@ -122,6 +123,25 @@ const TaskDetails: React.FC = () => {
     useEffect(() => {
         setEditedDueDate(task?.due_date || '');
     }, [task?.due_date]);
+
+    useEffect(() => {
+        const dueTimeMinutes = task?.due_time_minutes;
+        if (dueTimeMinutes === null || dueTimeMinutes === undefined) {
+            setEditedDueTime('');
+            return;
+        }
+        const hours = Math.floor(dueTimeMinutes / 60)
+            .toString()
+            .padStart(2, '0');
+        const minutes = (dueTimeMinutes % 60).toString().padStart(2, '0');
+        setEditedDueTime(`${hours}:${minutes}`);
+    }, [task?.due_time_minutes]);
+
+    useEffect(() => {
+        if (!editedDueDate) {
+            setEditedDueTime('');
+        }
+    }, [editedDueDate]);
 
     useEffect(() => {
         setRecurrenceForm({
@@ -276,6 +296,16 @@ const TaskDetails: React.FC = () => {
 
     const handleStartDueDateEdit = () => {
         setEditedDueDate(task?.due_date || '');
+        const dueTimeMinutes = task?.due_time_minutes;
+        if (dueTimeMinutes === null || dueTimeMinutes === undefined) {
+            setEditedDueTime('');
+        } else {
+            const hours = Math.floor(dueTimeMinutes / 60)
+                .toString()
+                .padStart(2, '0');
+            const minutes = (dueTimeMinutes % 60).toString().padStart(2, '0');
+            setEditedDueTime(`${hours}:${minutes}`);
+        }
         setIsEditingDueDate(true);
     };
 
@@ -286,7 +316,34 @@ const TaskDetails: React.FC = () => {
             return;
         }
 
-        if ((editedDueDate || '') === (task.due_date || '')) {
+        const parseTimeToMinutes = (value: string) => {
+            if (!value) return null;
+            const [hours, minutes] = value.split(':');
+            const parsedHours = Number(hours);
+            const parsedMinutes = Number(minutes);
+            if (
+                Number.isNaN(parsedHours) ||
+                Number.isNaN(parsedMinutes) ||
+                parsedHours < 0 ||
+                parsedHours > 23 ||
+                parsedMinutes < 0 ||
+                parsedMinutes > 59
+            ) {
+                return null;
+            }
+            const total = parsedHours * 60 + parsedMinutes;
+            return total >= 0 && total <= 1439 ? total : null;
+        };
+
+        const nextDueTimeMinutes = editedDueDate
+            ? parseTimeToMinutes(editedDueTime)
+            : null;
+        const currentDueTimeMinutes = task.due_time_minutes ?? null;
+
+        if (
+            (editedDueDate || '') === (task.due_date || '') &&
+            nextDueTimeMinutes === currentDueTimeMinutes
+        ) {
             setIsEditingDueDate(false);
             return;
         }
@@ -328,6 +385,7 @@ const TaskDetails: React.FC = () => {
             await updateTask(task.uid, {
                 ...task,
                 due_date: editedDueDate || null,
+                due_time_minutes: nextDueTimeMinutes,
             });
 
             if (uid) {
@@ -354,6 +412,15 @@ const TaskDetails: React.FC = () => {
                 t('task.dueDateUpdateError', 'Failed to update due date')
             );
             setEditedDueDate(task.due_date || '');
+            setEditedDueTime(
+                currentDueTimeMinutes === null
+                    ? ''
+                    : `${Math.floor(currentDueTimeMinutes / 60)
+                          .toString()
+                          .padStart(2, '0')}:${(currentDueTimeMinutes % 60)
+                          .toString()
+                          .padStart(2, '0')}`
+            );
             setIsEditingDueDate(false);
         }
     };
@@ -361,6 +428,16 @@ const TaskDetails: React.FC = () => {
     const handleCancelDueDateEdit = () => {
         setIsEditingDueDate(false);
         setEditedDueDate(task?.due_date || '');
+        const dueTimeMinutes = task?.due_time_minutes ?? null;
+        setEditedDueTime(
+            dueTimeMinutes === null
+                ? ''
+                : `${Math.floor(dueTimeMinutes / 60)
+                      .toString()
+                      .padStart(2, '0')}:${(dueTimeMinutes % 60)
+                      .toString()
+                      .padStart(2, '0')}`
+        );
     };
 
     const handleStartDeferUntilEdit = () => {
@@ -1148,10 +1225,27 @@ const TaskDetails: React.FC = () => {
                                     task={task}
                                     isEditing={isEditingDueDate}
                                     editedDueDate={editedDueDate}
+                                    editedDueTime={editedDueTime}
                                     onChangeDate={setEditedDueDate}
+                                    onChangeTime={setEditedDueTime}
                                     onStartEdit={handleStartDueDateEdit}
                                     onSave={handleSaveDueDate}
                                     onCancel={handleCancelDueDateEdit}
+                                    dueTimeDisplay={
+                                        task.due_time_minutes === null ||
+                                        task.due_time_minutes === undefined
+                                            ? null
+                                            : `${Math.floor(
+                                                  task.due_time_minutes / 60
+                                              )
+                                                  .toString()
+                                                  .padStart(2, '0')}:${(
+                                                  task.due_time_minutes % 60
+                                              )
+                                                  .toString()
+                                                  .padStart(2, '0')}`
+                                    }
+                                    isTimeDisabled={!editedDueDate}
                                 />
 
                                 <TaskDeferUntilCard

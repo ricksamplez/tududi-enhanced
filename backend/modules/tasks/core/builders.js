@@ -21,10 +21,18 @@ function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
         dueDate = `${year}-${month}-${day}`;
     }
 
+    const normalizedDueTimeMinutes =
+        body.due_time_minutes === undefined
+            ? null
+            : body.due_time_minutes === null || body.due_time_minutes === ''
+              ? null
+              : Number(body.due_time_minutes);
+
     const attrs = {
         name: body.name?.trim(),
         priority: parsePriority(body.priority),
         due_date: processDueDateForStorage(dueDate, timezone),
+        due_time_minutes: normalizedDueTimeMinutes,
         defer_until: processDeferUntilForStorage(body.defer_until, timezone),
         status: parseStatus(body.status),
         note: body.note,
@@ -69,12 +77,20 @@ function buildUpdateAttributes(body, task, timezone) {
         body.recurrence_type !== 'none' &&
         (task.recurrence_type === 'none' || !task.recurrence_type);
 
+    const normalizedDueTimeMinutes =
+        body.due_time_minutes === undefined
+            ? undefined
+            : body.due_time_minutes === null || body.due_time_minutes === ''
+              ? null
+              : Number(body.due_time_minutes);
+
     const attrs = {
         name: body.name,
         priority:
             body.priority !== undefined
                 ? parsePriority(body.priority)
                 : undefined,
+        due_time_minutes: normalizedDueTimeMinutes,
         status:
             body.status !== undefined
                 ? parseStatus(body.status)
