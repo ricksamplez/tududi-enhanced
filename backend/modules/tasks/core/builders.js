@@ -36,12 +36,21 @@ function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
               ? null
               : Number(body.estimated_duration_minutes);
 
+    const normalizedActualDurationMinutes =
+        body.actual_duration_minutes === undefined
+            ? null
+            : body.actual_duration_minutes === null ||
+                body.actual_duration_minutes === ''
+              ? null
+              : Number(body.actual_duration_minutes);
+
     const attrs = {
         name: body.name?.trim(),
         priority: parsePriority(body.priority),
         due_date: processDueDateForStorage(dueDate, timezone),
         due_time_minutes: normalizedDueTimeMinutes,
         estimated_duration_minutes: normalizedEstimatedDurationMinutes,
+        actual_duration_minutes: normalizedActualDurationMinutes,
         defer_until: processDeferUntilForStorage(body.defer_until, timezone),
         status: parseStatus(body.status),
         note: body.note,
@@ -101,6 +110,14 @@ function buildUpdateAttributes(body, task, timezone) {
               ? null
               : Number(body.estimated_duration_minutes);
 
+    const normalizedActualDurationMinutes =
+        body.actual_duration_minutes === undefined
+            ? undefined
+            : body.actual_duration_minutes === null ||
+                body.actual_duration_minutes === ''
+              ? null
+              : Number(body.actual_duration_minutes);
+
     const attrs = {
         name: body.name,
         priority:
@@ -109,6 +126,7 @@ function buildUpdateAttributes(body, task, timezone) {
                 : undefined,
         due_time_minutes: normalizedDueTimeMinutes,
         estimated_duration_minutes: normalizedEstimatedDurationMinutes,
+        actual_duration_minutes: normalizedActualDurationMinutes,
         status:
             body.status !== undefined
                 ? parseStatus(body.status)

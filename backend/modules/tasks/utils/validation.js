@@ -106,10 +106,25 @@ function validateEstimatedDurationMinutes(estimatedDurationMinutes) {
     }
 }
 
+function validateActualDurationMinutes(actualDurationMinutes) {
+    if (actualDurationMinutes === undefined || actualDurationMinutes === null) {
+        return;
+    }
+
+    if (!Number.isInteger(actualDurationMinutes)) {
+        throw new Error('Actual duration must be a whole number of minutes.');
+    }
+
+    if (actualDurationMinutes < 1 || actualDurationMinutes > 1440) {
+        throw new Error('Actual duration must be between 1 and 1440 minutes.');
+    }
+}
+
 module.exports = {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
     validateDueTimeMinutes,
     validateEstimatedDurationMinutes,
+    validateActualDurationMinutes,
 };

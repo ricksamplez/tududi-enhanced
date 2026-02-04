@@ -14,14 +14,17 @@ interface TaskDueDateCardProps {
     editedDueDate: string;
     editedDueTime: string;
     editedEstimatedDuration: string;
+    editedActualDuration: string;
     onChangeDate: (value: string) => void;
     onChangeTime: (value: string) => void;
     onChangeEstimatedDuration: (value: string) => void;
+    onChangeActualDuration: (value: string) => void;
     onStartEdit: () => void;
     onSave: () => void;
     onCancel: () => void;
     dueTimeDisplay: string | null;
     estimatedDurationDisplay: string | null;
+    actualDurationDisplay: string | null;
     isTimeDisabled: boolean;
 }
 
@@ -31,14 +34,17 @@ const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
     editedDueDate,
     editedDueTime,
     editedEstimatedDuration,
+    editedActualDuration,
     onChangeDate,
     onChangeTime,
     onChangeEstimatedDuration,
+    onChangeActualDuration,
     onStartEdit,
     onSave,
     onCancel,
     dueTimeDisplay,
     estimatedDurationDisplay,
+    actualDurationDisplay,
     isTimeDisabled,
 }) => {
     const { t, i18n } = useTranslation();
@@ -159,6 +165,28 @@ const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
                                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
                             />
                         </div>
+                        <div>
+                            <label
+                                htmlFor="task-actual-duration"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                            >
+                                {t(
+                                    'task.actualDuration',
+                                    'Actual duration (minutes)'
+                                )}
+                            </label>
+                            <input
+                                id="task-actual-duration"
+                                type="number"
+                                min={1}
+                                max={1440}
+                                value={editedActualDuration}
+                                onChange={(event) =>
+                                    onChangeActualDuration(event.target.value)
+                                }
+                                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                        </div>
                         <div className="flex justify-end space-x-2">
                             <button
                                 onClick={onSave}
@@ -226,6 +254,11 @@ const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
                                             {estimatedDurationDisplay && (
                                                 <span className="text-sm text-gray-500 dark:text-gray-400">
                                                     {estimatedDurationDisplay}
+                                                </span>
+                                            )}
+                                            {actualDurationDisplay && (
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {actualDurationDisplay}
                                                 </span>
                                             )}
                                             <span

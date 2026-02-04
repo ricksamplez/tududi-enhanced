@@ -40,6 +40,14 @@ module.exports = (sequelize) => {
                     max: 1440,
                 },
             },
+            actual_duration_minutes: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                validate: {
+                    min: 1,
+                    max: 1440,
+                },
+            },
             defer_until: {
                 type: DataTypes.DATE,
                 allowNull: true,
