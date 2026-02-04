@@ -1,6 +1,6 @@
 'use strict';
 
-const { TimetableSlot } = require('../../models');
+const { TimetableSlot, Area, Project } = require('../../models');
 const BaseRepository = require('../../shared/database/BaseRepository');
 
 class TimetableRepository extends BaseRepository {
@@ -15,6 +15,10 @@ class TimetableRepository extends BaseRepository {
         }
         return this.model.findAll({
             where,
+            include: [
+                { model: Area, as: 'area' },
+                { model: Project, as: 'projects', through: { attributes: [] } },
+            ],
             order: [
                 ['weekday', 'ASC'],
                 ['start_minute', 'ASC'],
@@ -28,6 +32,10 @@ class TimetableRepository extends BaseRepository {
                 id,
                 user_id: userId,
             },
+            include: [
+                { model: Area, as: 'area' },
+                { model: Project, as: 'projects', through: { attributes: [] } },
+            ],
         });
     }
 }
