@@ -27,7 +27,6 @@ describe('Planning Routes', () => {
                 weekday: 1,
                 start_minute: 540,
                 end_minute: 1020,
-                slot_type: 'work',
             });
 
             await TimetableSlot.create({
@@ -35,7 +34,6 @@ describe('Planning Routes', () => {
                 weekday: 2,
                 start_minute: 540,
                 end_minute: 1020,
-                slot_type: 'work',
             });
 
             await Task.create({

@@ -57,9 +57,6 @@ class PlanningService {
         });
 
         timetableSlots.forEach((slot) => {
-            if (slot.slot_type !== 'work') {
-                return;
-            }
             const dayIndex = days.findIndex(
                 (day) => day.weekday === slot.weekday
             );
