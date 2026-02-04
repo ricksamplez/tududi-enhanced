@@ -12,19 +12,16 @@ function validateMinutes(value, fieldName) {
     if (!Number.isInteger(value)) {
         throw new ValidationError(`${fieldName} must be a whole number.`);
     }
-    if (value < 0 || value > 1440) {
-        throw new ValidationError(`${fieldName} must be between 0 and 1440.`);
+    if (fieldName === 'Start minute' && (value < 0 || value > 1439)) {
+        throw new ValidationError(`${fieldName} must be between 0 and 1439.`);
     }
-}
-
-function validateSlotType(slotType) {
-    if (!['work', 'pause'].includes(slotType)) {
-        throw new ValidationError('Slot type must be work or pause.');
+    if (fieldName === 'End minute' && (value < 1 || value > 1440)) {
+        throw new ValidationError(`${fieldName} must be between 1 and 1440.`);
     }
 }
 
 function validateSlotPayload(payload) {
-    const { weekday, start_minute, end_minute, slot_type } = payload;
+    const { weekday, start_minute, end_minute } = payload;
 
     validateWeekday(weekday);
     validateMinutes(start_minute, 'Start minute');
@@ -34,7 +31,6 @@ function validateSlotPayload(payload) {
         throw new ValidationError('End minute must be after start minute.');
     }
 
-    validateSlotType(slot_type);
 }
 
 module.exports = {
