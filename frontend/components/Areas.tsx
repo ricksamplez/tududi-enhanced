@@ -82,6 +82,7 @@ const Areas: React.FC = () => {
                 result = await updateArea(areaData.uid, {
                     name: areaData.name,
                     description: areaData.description,
+                    color: areaData.color,
                 });
                 // Update the existing area in the list
                 const currentAreas = useStore.getState().areasStore.areas;
@@ -96,6 +97,7 @@ const Areas: React.FC = () => {
                 result = await createArea({
                     name: areaData.name,
                     description: areaData.description,
+                    color: areaData.color,
                 });
 
                 // Add the new area immediately to global state
@@ -181,7 +183,7 @@ const Areas: React.FC = () => {
                                               .toLowerCase()
                                               .replace(/[^a-z0-9]+/g, '-')
                                               .replace(/^-|-$/g, '')}`
-                                        : `/projects?area_id=${area.uid}`
+                                        : `/projects?area_id=${area.id}`
                                 }
                                 className={`bg-gray-50 dark:bg-gray-900 rounded-lg shadow-md relative flex flex-col group hover:opacity-90 transition-opacity cursor-pointer ${
                                     dropdownOpen === area.uid ? 'z-50' : ''
@@ -194,6 +196,17 @@ const Areas: React.FC = () => {
                                 {/* Area Content - Centered */}
                                 <div className="p-4 flex-1 flex items-center justify-center">
                                     <div className="text-center">
+                                        {area.color && (
+                                            <div className="flex justify-center mb-2">
+                                                <span
+                                                    className="h-3 w-3 rounded-full border border-gray-300 dark:border-gray-700"
+                                                    style={{
+                                                        backgroundColor:
+                                                            area.color,
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                         <h3 className="text-lg font-light text-gray-900 dark:text-gray-100 line-clamp-2 uppercase">
                                             {area.name}
                                         </h3>

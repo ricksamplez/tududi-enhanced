@@ -15,6 +15,8 @@ import ViewDetail from './components/ViewDetail';
 import Notes from './components/Notes';
 import NoteDetails from './components/Note/NoteDetails';
 import Calendar from './components/Calendar';
+import Timetable from './components/Timetable';
+import WeekPlanning from './components/Planning/WeekPlanning';
 import ProfileSettings from './components/Profile/ProfileSettings';
 import About from './components/About';
 import BackupRestore from './components/Backup/BackupRestore';
@@ -254,6 +256,14 @@ const App: React.FC = () => {
                                 element={<NoteDetails />}
                             />
                             <Route path="/calendar" element={<Calendar />} />
+                            <Route
+                                path="/planning"
+                                element={<WeekPlanning />}
+                            />
+                            <Route
+                                path="/timetable"
+                                element={<Timetable />}
+                            />
                             <Route
                                 path="/profile"
                                 element={

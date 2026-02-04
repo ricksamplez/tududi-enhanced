@@ -26,6 +26,7 @@ const AreaModal: React.FC<AreaModalProps> = ({
         uid: area?.uid || '',
         name: area?.name || '',
         description: area?.description || '',
+        color: area?.color || '',
     });
 
     const [error, setError] = useState<string | null>(null);
@@ -44,6 +45,7 @@ const AreaModal: React.FC<AreaModalProps> = ({
                 uid: area?.uid || '',
                 name: area?.name || '',
                 description: area?.description || '',
+                color: area?.color || '',
             });
             setError(null);
 
@@ -146,14 +148,16 @@ const AreaModal: React.FC<AreaModalProps> = ({
             // New area - check if any field has been filled
             return (
                 formData.name.trim() !== '' ||
-                formData.description?.trim() !== ''
+                formData.description?.trim() !== '' ||
+                (formData.color || '').trim() !== ''
             );
         }
 
         // Existing area - compare with original
         return (
             formData.name !== area.name ||
-            formData.description !== area.description
+            formData.description !== area.description ||
+            (formData.color || '') !== (area.color || '')
         );
     };
 
@@ -245,6 +249,45 @@ const AreaModal: React.FC<AreaModalProps> = ({
                                                         )}
                                                         data-testid="area-name-input"
                                                     />
+                                                </div>
+
+                                                <div className="pb-4 sm:px-4">
+                                                    <label
+                                                        htmlFor="areaColor"
+                                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                                                    >
+                                                        {t(
+                                                            'forms.areaColor',
+                                                            'Area color'
+                                                        )}
+                                                    </label>
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            id="areaColor"
+                                                            name="color"
+                                                            type="color"
+                                                            value={
+                                                                formData.color ||
+                                                                '#cccccc'
+                                                            }
+                                                            onChange={
+                                                                handleChange
+                                                            }
+                                                            className="h-10 w-14 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            name="color"
+                                                            value={
+                                                                formData.color
+                                                            }
+                                                            onChange={
+                                                                handleChange
+                                                            }
+                                                            className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                                                            placeholder="#RRGGBB"
+                                                        />
+                                                    </div>
                                                 </div>
 
                                                 {/* Description Section - Always Visible */}
