@@ -156,6 +156,7 @@ npm run backend:test
 npm run frontend:test
 
 # E2E tests
+npx playwright install --with-deps chromium
 npm run test:ui
 
 # Watch mode (useful during development)

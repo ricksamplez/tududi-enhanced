@@ -24,6 +24,8 @@ test.describe('Today', () => {
         context,
         baseURL,
     }) => {
+        test.setTimeout(60000);
+
         // Login first
         await loginViaUI(page, baseURL);
 

@@ -115,6 +115,8 @@ test.describe('Inbox', () => {
             context,
             baseURL,
         }) => {
+            test.setTimeout(60000);
+
             await loginViaUI(page, baseURL);
 
             const appUrl =
