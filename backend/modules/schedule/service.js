@@ -25,6 +25,36 @@ const EXCLUDED_STATUSES = [
     'cancelled',
 ];
 
+const SQLITE_BUSY_ERRORS = new Set(['SQLITE_BUSY', 'SQLITE_BUSY_TIMEOUT']);
+
+const isSqliteBusyError = (error) =>
+    Boolean(
+        SQLITE_BUSY_ERRORS.has(error?.code) ||
+            SQLITE_BUSY_ERRORS.has(error?.parent?.code) ||
+            SQLITE_BUSY_ERRORS.has(error?.original?.code)
+    );
+
+const wait = (ms) =>
+    new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+
+const withSqliteRetry = async (operation, { retries = 3, delayMs = 50 } = {}) => {
+    let attempt = 0;
+    while (attempt <= retries) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (!isSqliteBusyError(error) || attempt === retries) {
+                throw error;
+            }
+            await wait(delayMs * (attempt + 1));
+            attempt += 1;
+        }
+    }
+    return undefined;
+};
+
 const toMinuteOfDay = (momentValue) =>
     momentValue.hour() * 60 + momentValue.minute();
 
@@ -191,354 +221,367 @@ class ScheduleService {
     }
 
     async ensureDayPlanned(userId, { dateMoment, timezone, today }) {
-        const dateString = dateMoment.format('YYYY-MM-DD');
-        const isPast = dateMoment.isBefore(today, 'day');
-        const isToday = dateMoment.isSame(today, 'day');
-        const cutoffMinute = isToday ? toMinuteOfDay(moment.tz(timezone)) : null;
-
-        const [dayRecord] = await ScheduleDay.findOrCreate({
-            where: { user_id: userId, date: dateString },
-            defaults: {
-                timezone,
-                cutoff_minute: cutoffMinute,
-                dirty: true,
-            },
-        });
-
-        if (isToday) {
-            dayRecord.timezone = timezone;
-            dayRecord.cutoff_minute = cutoffMinute;
-            await dayRecord.save();
-        }
-
-        const slots = await TimetableSlot.findAll({
-            where: { user_id: userId, weekday: dateMoment.day() },
-            include: [
-                { model: Project, as: 'projects', through: { attributes: [] } },
-                { model: Area, as: 'area' },
-            ],
-            order: [['start_minute', 'ASC']],
-        });
-
-        const existingEntries = await ScheduleEntry.findAll({
-            where: { user_id: userId, date: dateString },
-            order: [['start_minute', 'ASC']],
-        });
-
-        if (isPast) {
-            return this.buildDayResponse({
-                dateMoment,
-                timezone,
-                cutoffMinute: dayRecord.cutoff_minute,
-                slots,
-                entries: existingEntries,
-                unassignedEligible: [],
-                incompleteForScheduling: [],
-            });
-        }
-
-        const needsReplan = dayRecord.dirty;
-        let protectedEntries = [];
-        let remainingEntries = existingEntries;
-
-        if (needsReplan) {
-            if (isToday) {
-                protectedEntries = existingEntries.filter(
-                    (entry) =>
-                        entry.end_minute <= cutoffMinute ||
-                        (entry.start_minute <= cutoffMinute &&
-                            entry.end_minute > cutoffMinute)
-                );
-                const removableIds = existingEntries
-                    .filter(
-                        (entry) =>
-                            entry.start_minute >= cutoffMinute &&
-                            !protectedEntries.includes(entry)
-                    )
-                    .map((entry) => entry.id);
-                if (removableIds.length > 0) {
-                    await ScheduleEntry.destroy({
-                        where: { id: { [Op.in]: removableIds } },
-                    });
-                }
-                remainingEntries = protectedEntries;
-            } else {
-                await ScheduleEntry.destroy({
-                    where: { user_id: userId, date: dateString },
-                });
-                remainingEntries = [];
-            }
-        }
-
-        if (!needsReplan) {
-            return this.buildDayResponse({
-                dateMoment,
-                timezone,
-                cutoffMinute: dayRecord.cutoff_minute,
-                slots,
-                entries: remainingEntries,
-                unassignedEligible: [],
-                incompleteForScheduling: [],
-            });
-        }
-
-        const tasks = await Task.findAll({
-            where: {
-                user_id: userId,
-                status: { [Op.notIn]: EXCLUDED_STATUSES },
-                parent_task_id: null,
-                [Op.or]: [
-                    {
-                        [Op.and]: [
-                            {
-                                [Op.or]: [
-                                    { recurrence_type: 'none' },
-                                    { recurrence_type: null },
-                                ],
-                            },
-                            { recurring_parent_id: null },
-                        ],
-                    },
-                    { recurring_parent_id: { [Op.ne]: null } },
-                ],
-            },
-            include: [
-                {
-                    model: Project,
-                    include: [{ model: Area }],
-                },
-            ],
-            order: [
-                ['due_date', 'ASC'],
-                ['priority', 'DESC'],
-                ['created_at', 'ASC'],
-            ],
-        });
-
-        const eligibleTasks = [];
-        const incompleteForScheduling = [];
-        tasks.forEach((task) => {
-            const dueDate = task.due_date
-                ? processDueDateForResponse(task.due_date, timezone)
+        return await withSqliteRetry(async () => {
+            const dateString = dateMoment.format('YYYY-MM-DD');
+            const isPast = dateMoment.isBefore(today, 'day');
+            const isToday = dateMoment.isSame(today, 'day');
+            const cutoffMinute = isToday
+                ? toMinuteOfDay(moment.tz(timezone))
                 : null;
-            if (!dueDate) {
-                if (dateString === today.format('YYYY-MM-DD')) {
-                    incompleteForScheduling.push({
-                        ...summarizeTask(task, timezone),
-                        missing: ['due_date'],
-                    });
-                }
-                return;
-            }
-            if (dueDate !== dateString) {
-                return;
-            }
-            const missingFields = [];
-            if (!task.due_date) missingFields.push('due_date');
-            if (task.due_time_minutes === null || task.due_time_minutes === undefined) {
-                missingFields.push('due_time_minutes');
-            }
-            if (
-                task.estimated_duration_minutes === null ||
-                task.estimated_duration_minutes === undefined
-            ) {
-                missingFields.push('estimated_duration_minutes');
-            }
-            if (missingFields.length > 0) {
-                incompleteForScheduling.push({
-                    ...summarizeTask(task, timezone),
-                    missing: missingFields,
-                });
-                return;
-            }
-            eligibleTasks.push(task);
-        });
 
-        const sortedTasks = eligibleTasks.sort((a, b) => {
-            if (a.due_time_minutes !== b.due_time_minutes) {
-                return a.due_time_minutes - b.due_time_minutes;
-            }
-            if (a.priority !== b.priority) {
-                return (b.priority || 0) - (a.priority || 0);
-            }
-            return a.created_at > b.created_at ? 1 : -1;
-        });
-
-        const slotWindows = slots.map((slot) => ({
-            slot,
-            windows: [{ start: slot.start_minute, end: slot.end_minute }],
-        }));
-
-        const protectedBySlot = new Map();
-        protectedEntries.forEach((entry) => {
-            const list = protectedBySlot.get(entry.slot_id) || [];
-            list.push(entry);
-            protectedBySlot.set(entry.slot_id, list);
-        });
-
-        slotWindows.forEach((slotWindow) => {
-            const protectedList =
-                protectedBySlot.get(slotWindow.slot.id) || [];
-            protectedList.forEach((entry) => {
-                slotWindow.windows = subtractWindow(
-                    slotWindow.windows,
-                    entry.start_minute,
-                    entry.end_minute
-                );
+            const [dayRecord] = await ScheduleDay.findOrCreate({
+                where: { user_id: userId, date: dateString },
+                defaults: {
+                    timezone,
+                    cutoff_minute: cutoffMinute,
+                    dirty: true,
+                },
             });
-            if (isToday && cutoffMinute !== null) {
-                slotWindow.windows = slotWindow.windows
-                    .map((window) => ({
-                        start: Math.max(window.start, cutoffMinute),
-                        end: window.end,
-                    }))
-                    .filter((window) => window.end > window.start);
+
+            if (isToday) {
+                dayRecord.timezone = timezone;
+                dayRecord.cutoff_minute = cutoffMinute;
+                await dayRecord.save();
             }
-        });
 
-        const newEntries = [];
-        const unassignedEligible = [];
+            const slots = await TimetableSlot.findAll({
+                where: { user_id: userId, weekday: dateMoment.day() },
+                include: [
+                    {
+                        model: Project,
+                        as: 'projects',
+                        through: { attributes: [] },
+                    },
+                    { model: Area, as: 'area' },
+                ],
+                order: [['start_minute', 'ASC']],
+            });
 
-        sortedTasks.forEach((task) => {
-            const dueTime = task.due_time_minutes;
-            const duration = task.estimated_duration_minutes;
-            const compatibleWindows = [];
+            const existingEntries = await ScheduleEntry.findAll({
+                where: { user_id: userId, date: dateString },
+                order: [['start_minute', 'ASC']],
+            });
 
-            const deferInfo = getDeferInfo(task, timezone, dateString);
-            if (deferInfo.blocked) {
-                unassignedEligible.push({
-                    ...summarizeTask(task, timezone),
-                    reason_code: 'DEFER_UNTIL_BLOCKS',
-                    reason_message: 'Defer date blocks scheduling on this day.',
+            if (isPast) {
+                return this.buildDayResponse({
+                    dateMoment,
+                    timezone,
+                    cutoffMinute: dayRecord.cutoff_minute,
+                    slots,
+                    entries: existingEntries,
+                    unassignedEligible: [],
+                    incompleteForScheduling: [],
                 });
-                return;
             }
 
-            slotWindows.forEach((slotWindow) => {
-                if (!isSlotCompatible(slotWindow.slot, task)) {
-                    return;
-                }
-                slotWindow.windows.forEach((window) => {
-                    let start = window.start;
-                    if (deferInfo.deferMinute !== null) {
-                        start = Math.max(start, deferInfo.deferMinute);
-                    }
-                    const end = Math.min(window.end, dueTime);
-                    if (end > start) {
-                        compatibleWindows.push({
-                            slotWindow,
-                            start,
-                            end,
+            const needsReplan = dayRecord.dirty;
+            let protectedEntries = [];
+            let remainingEntries = existingEntries;
+
+            if (needsReplan) {
+                if (isToday) {
+                    protectedEntries = existingEntries.filter(
+                        (entry) =>
+                            entry.end_minute <= cutoffMinute ||
+                            (entry.start_minute <= cutoffMinute &&
+                                entry.end_minute > cutoffMinute)
+                    );
+                    const removableIds = existingEntries
+                        .filter(
+                            (entry) =>
+                                entry.start_minute >= cutoffMinute &&
+                                !protectedEntries.includes(entry)
+                        )
+                        .map((entry) => entry.id);
+                    if (removableIds.length > 0) {
+                        await ScheduleEntry.destroy({
+                            where: { id: { [Op.in]: removableIds } },
                         });
                     }
+                    remainingEntries = protectedEntries;
+                } else {
+                    await ScheduleEntry.destroy({
+                        where: { user_id: userId, date: dateString },
+                    });
+                    remainingEntries = [];
+                }
+            }
+
+            if (!needsReplan) {
+                return this.buildDayResponse({
+                    dateMoment,
+                    timezone,
+                    cutoffMinute: dayRecord.cutoff_minute,
+                    slots,
+                    entries: remainingEntries,
+                    unassignedEligible: [],
+                    incompleteForScheduling: [],
                 });
+            }
+
+            const tasks = await Task.findAll({
+                where: {
+                    user_id: userId,
+                    status: { [Op.notIn]: EXCLUDED_STATUSES },
+                    parent_task_id: null,
+                    [Op.or]: [
+                        {
+                            [Op.and]: [
+                                {
+                                    [Op.or]: [
+                                        { recurrence_type: 'none' },
+                                        { recurrence_type: null },
+                                    ],
+                                },
+                                { recurring_parent_id: null },
+                            ],
+                        },
+                        { recurring_parent_id: { [Op.ne]: null } },
+                    ],
+                },
+                include: [
+                    {
+                        model: Project,
+                        include: [{ model: Area }],
+                    },
+                ],
+                order: [
+                    ['due_date', 'ASC'],
+                    ['priority', 'DESC'],
+                    ['created_at', 'ASC'],
+                ],
             });
 
-            if (compatibleWindows.length === 0) {
-                const earliestSlotStart = slotWindows
-                    .filter((slotWindow) =>
-                        isSlotCompatible(slotWindow.slot, task)
-                    )
-                    .map((slotWindow) => slotWindow.slot.start_minute)
-                    .sort((a, b) => a - b)[0];
+            const eligibleTasks = [];
+            const incompleteForScheduling = [];
+            tasks.forEach((task) => {
+                const dueDate = task.due_date
+                    ? processDueDateForResponse(task.due_date, timezone)
+                    : null;
+                if (!dueDate) {
+                    if (dateString === today.format('YYYY-MM-DD')) {
+                        incompleteForScheduling.push({
+                            ...summarizeTask(task, timezone),
+                            missing: ['due_date'],
+                        });
+                    }
+                    return;
+                }
+                if (dueDate !== dateString) {
+                    return;
+                }
+                const missingFields = [];
+                if (!task.due_date) missingFields.push('due_date');
                 if (
-                    deferInfo.deferMinute !== null &&
-                    deferInfo.deferMinute >= dueTime
+                    task.due_time_minutes === null ||
+                    task.due_time_minutes === undefined
                 ) {
+                    missingFields.push('due_time_minutes');
+                }
+                if (
+                    task.estimated_duration_minutes === null ||
+                    task.estimated_duration_minutes === undefined
+                ) {
+                    missingFields.push('estimated_duration_minutes');
+                }
+                if (missingFields.length > 0) {
+                    incompleteForScheduling.push({
+                        ...summarizeTask(task, timezone),
+                        missing: missingFields,
+                    });
+                    return;
+                }
+                eligibleTasks.push(task);
+            });
+
+            const sortedTasks = eligibleTasks.sort((a, b) => {
+                if (a.due_time_minutes !== b.due_time_minutes) {
+                    return a.due_time_minutes - b.due_time_minutes;
+                }
+                if (a.priority !== b.priority) {
+                    return (b.priority || 0) - (a.priority || 0);
+                }
+                return a.created_at > b.created_at ? 1 : -1;
+            });
+
+            const slotWindows = slots.map((slot) => ({
+                slot,
+                windows: [{ start: slot.start_minute, end: slot.end_minute }],
+            }));
+
+            const protectedBySlot = new Map();
+            protectedEntries.forEach((entry) => {
+                const list = protectedBySlot.get(entry.slot_id) || [];
+                list.push(entry);
+                protectedBySlot.set(entry.slot_id, list);
+            });
+
+            slotWindows.forEach((slotWindow) => {
+                const protectedList =
+                    protectedBySlot.get(slotWindow.slot.id) || [];
+                protectedList.forEach((entry) => {
+                    slotWindow.windows = subtractWindow(
+                        slotWindow.windows,
+                        entry.start_minute,
+                        entry.end_minute
+                    );
+                });
+                if (isToday && cutoffMinute !== null) {
+                    slotWindow.windows = slotWindow.windows
+                        .map((window) => ({
+                            start: Math.max(window.start, cutoffMinute),
+                            end: window.end,
+                        }))
+                        .filter((window) => window.end > window.start);
+                }
+            });
+
+            const newEntries = [];
+            const unassignedEligible = [];
+
+            sortedTasks.forEach((task) => {
+                const dueTime = task.due_time_minutes;
+                const duration = task.estimated_duration_minutes;
+                const compatibleWindows = [];
+
+                const deferInfo = getDeferInfo(task, timezone, dateString);
+                if (deferInfo.blocked) {
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
                         reason_code: 'DEFER_UNTIL_BLOCKS',
                         reason_message:
-                            'Defer time is after the task deadline.',
+                            'Defer date blocks scheduling on this day.',
                     });
-                } else if (
-                    earliestSlotStart !== undefined &&
-                    earliestSlotStart >= dueTime
-                ) {
+                    return;
+                }
+
+                slotWindows.forEach((slotWindow) => {
+                    if (!isSlotCompatible(slotWindow.slot, task)) {
+                        return;
+                    }
+                    slotWindow.windows.forEach((window) => {
+                        let start = window.start;
+                        if (deferInfo.deferMinute !== null) {
+                            start = Math.max(start, deferInfo.deferMinute);
+                        }
+                        const end = Math.min(window.end, dueTime);
+                        if (end > start) {
+                            compatibleWindows.push({
+                                slotWindow,
+                                start,
+                                end,
+                            });
+                        }
+                    });
+                });
+
+                if (compatibleWindows.length === 0) {
+                    const earliestSlotStart = slotWindows
+                        .filter((slotWindow) =>
+                            isSlotCompatible(slotWindow.slot, task)
+                        )
+                        .map((slotWindow) => slotWindow.slot.start_minute)
+                        .sort((a, b) => a - b)[0];
+                    if (
+                        deferInfo.deferMinute !== null &&
+                        deferInfo.deferMinute >= dueTime
+                    ) {
+                        unassignedEligible.push({
+                            ...summarizeTask(task, timezone),
+                            reason_code: 'DEFER_UNTIL_BLOCKS',
+                            reason_message:
+                                'Defer time is after the task deadline.',
+                        });
+                    } else if (
+                        earliestSlotStart !== undefined &&
+                        earliestSlotStart >= dueTime
+                    ) {
+                        unassignedEligible.push({
+                            ...summarizeTask(task, timezone),
+                            reason_code:
+                                'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
+                            reason_message:
+                                'Deadline is before the first available slot.',
+                        });
+                    } else {
+                        unassignedEligible.push({
+                            ...summarizeTask(task, timezone),
+                            reason_code: 'NO_MATCHING_SLOT',
+                            reason_message:
+                                'No compatible timetable slot for this task.',
+                        });
+                    }
+                    return;
+                }
+
+                const totalAvailable = compatibleWindows.reduce(
+                    (total, window) => total + (window.end - window.start),
+                    0
+                );
+                if (totalAvailable < duration) {
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
-                        reason_code: 'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
+                        reason_code: 'NOT_ENOUGH_CAPACITY_BEFORE_DEADLINE',
                         reason_message:
-                            'Deadline is before the first available slot.',
+                            'Not enough capacity before the deadline.',
                     });
-                } else {
+                    return;
+                }
+
+                let remaining = duration;
+                compatibleWindows.sort((a, b) => a.start - b.start);
+                compatibleWindows.forEach((window) => {
+                    if (remaining <= 0) return;
+                    const available = window.end - window.start;
+                    if (available <= 0) return;
+                    const allocation = Math.min(remaining, available);
+                    const segmentEnd = window.start + allocation;
+                    newEntries.push({
+                        user_id: userId,
+                        date: dateString,
+                        start_minute: window.start,
+                        end_minute: segmentEnd,
+                        task_id: task.id,
+                        slot_id: window.slotWindow.slot.id,
+                    });
+                    window.slotWindow.windows = subtractWindow(
+                        window.slotWindow.windows,
+                        window.start,
+                        segmentEnd
+                    );
+                    remaining -= allocation;
+                });
+
+                if (remaining > 0) {
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
-                        reason_code: 'NO_MATCHING_SLOT',
+                        reason_code: 'SLOT_FRAGMENTATION_TOO_SMALL',
                         reason_message:
-                            'No compatible timetable slot for this task.',
+                            'Available slots are too fragmented to fit the task.',
                     });
                 }
-                return;
-            }
-
-            const totalAvailable = compatibleWindows.reduce(
-                (total, window) => total + (window.end - window.start),
-                0
-            );
-            if (totalAvailable < duration) {
-                unassignedEligible.push({
-                    ...summarizeTask(task, timezone),
-                    reason_code: 'NOT_ENOUGH_CAPACITY_BEFORE_DEADLINE',
-                    reason_message:
-                        'Not enough capacity before the deadline.',
-                });
-                return;
-            }
-
-            let remaining = duration;
-            compatibleWindows.sort((a, b) => a.start - b.start);
-            compatibleWindows.forEach((window) => {
-                if (remaining <= 0) return;
-                const available = window.end - window.start;
-                if (available <= 0) return;
-                const allocation = Math.min(remaining, available);
-                const segmentEnd = window.start + allocation;
-                newEntries.push({
-                    user_id: userId,
-                    date: dateString,
-                    start_minute: window.start,
-                    end_minute: segmentEnd,
-                    task_id: task.id,
-                    slot_id: window.slotWindow.slot.id,
-                });
-                window.slotWindow.windows = subtractWindow(
-                    window.slotWindow.windows,
-                    window.start,
-                    segmentEnd
-                );
-                remaining -= allocation;
             });
 
-            if (remaining > 0) {
-                unassignedEligible.push({
-                    ...summarizeTask(task, timezone),
-                    reason_code: 'SLOT_FRAGMENTATION_TOO_SMALL',
-                    reason_message:
-                        'Available slots are too fragmented to fit the task.',
-                });
+            if (newEntries.length > 0) {
+                await ScheduleEntry.bulkCreate(newEntries);
             }
-        });
 
-        if (newEntries.length > 0) {
-            await ScheduleEntry.bulkCreate(newEntries);
-        }
+            await dayRecord.update({ dirty: false, dirty_reason: null });
 
-        await dayRecord.update({ dirty: false, dirty_reason: null });
+            const finalEntries = await ScheduleEntry.findAll({
+                where: { user_id: userId, date: dateString },
+                order: [['start_minute', 'ASC']],
+            });
 
-        const finalEntries = await ScheduleEntry.findAll({
-            where: { user_id: userId, date: dateString },
-            order: [['start_minute', 'ASC']],
-        });
-
-        return this.buildDayResponse({
-            dateMoment,
-            timezone,
-            cutoffMinute: dayRecord.cutoff_minute,
-            slots,
-            entries: finalEntries,
-            unassignedEligible,
-            incompleteForScheduling,
+            return this.buildDayResponse({
+                dateMoment,
+                timezone,
+                cutoffMinute: dayRecord.cutoff_minute,
+                slots,
+                entries: finalEntries,
+                unassignedEligible,
+                incompleteForScheduling,
+            });
         });
     }
 

@@ -1,0 +1,41 @@
+import { getApiPath } from '../config/paths';
+import { handleAuthResponse } from './authUtils';
+import { ScheduleDay, ScheduleWeek } from '../entities/Schedule';
+
+export const fetchScheduleWeek = async (
+    start?: string
+): Promise<ScheduleWeek> => {
+    const params = new URLSearchParams();
+    if (start) {
+        params.set('start', start);
+    }
+    const response = await fetch(
+        getApiPath(`schedule/week${params.toString() ? `?${params}` : ''}`),
+        {
+            credentials: 'include',
+            headers: {
+                Accept: 'application/json',
+            },
+        }
+    );
+    await handleAuthResponse(response, 'Failed to fetch schedule.');
+    return await response.json();
+};
+
+export const fetchScheduleDay = async (date?: string): Promise<ScheduleDay> => {
+    const params = new URLSearchParams();
+    if (date) {
+        params.set('date', date);
+    }
+    const response = await fetch(
+        getApiPath(`schedule/day${params.toString() ? `?${params}` : ''}`),
+        {
+            credentials: 'include',
+            headers: {
+                Accept: 'application/json',
+            },
+        }
+    );
+    await handleAuthResponse(response, 'Failed to fetch schedule.');
+    return await response.json();
+};

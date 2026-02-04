@@ -79,6 +79,11 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
             icon: <CalendarIcon className="h-5 w-5" />,
         },
         {
+            path: '/schedule',
+            title: t('sidebar.schedule', 'Schedule'),
+            icon: <CalendarDaysIcon className="h-5 w-5" />,
+        },
+        {
             path: '/tasks?status=active',
             title: t('sidebar.allTasks', 'All Tasks'),
             icon: <ListBulletIcon className="h-5 w-5" />,
@@ -99,7 +104,8 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
             path === '/today' ||
             path === '/calendar' ||
             path === '/timetable' ||
-            path === '/planning'
+            path === '/planning' ||
+            path === '/schedule'
         ) {
             const isPathMatch = location.pathname === path;
             return isPathMatch
