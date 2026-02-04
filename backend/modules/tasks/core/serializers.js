@@ -84,6 +84,8 @@ async function serializeTask(
         uid: task.uid,
         recurring_parent_uid: recurringParentUid,
         due_date: processDueDateForResponse(taskJson.due_date, safeTimezone),
+        due_time_minutes: taskJson.due_time_minutes ?? null,
+        estimated_duration_minutes: taskJson.estimated_duration_minutes ?? null,
         defer_until: processDeferUntilForResponse(
             taskJson.defer_until,
             safeTimezone
@@ -108,6 +110,9 @@ async function serializeTask(
                       subtask.defer_until,
                       safeTimezone
                   ),
+                  due_time_minutes: subtask.due_time_minutes ?? null,
+                  estimated_duration_minutes:
+                      subtask.estimated_duration_minutes ?? null,
                   completed_at: subtask.completed_at
                       ? subtask.completed_at instanceof Date
                           ? subtask.completed_at.toISOString()

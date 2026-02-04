@@ -12,20 +12,34 @@ interface TaskDueDateCardProps {
     task: Task;
     isEditing: boolean;
     editedDueDate: string;
+    editedDueTime: string;
+    editedEstimatedDuration: string;
     onChangeDate: (value: string) => void;
+    onChangeTime: (value: string) => void;
+    onChangeEstimatedDuration: (value: string) => void;
     onStartEdit: () => void;
     onSave: () => void;
     onCancel: () => void;
+    dueTimeDisplay: string | null;
+    estimatedDurationDisplay: string | null;
+    isTimeDisabled: boolean;
 }
 
 const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
     task,
     isEditing,
     editedDueDate,
+    editedDueTime,
+    editedEstimatedDuration,
     onChangeDate,
+    onChangeTime,
+    onChangeEstimatedDuration,
     onStartEdit,
     onSave,
     onCancel,
+    dueTimeDisplay,
+    estimatedDurationDisplay,
+    isTimeDisabled,
 }) => {
     const { t, i18n } = useTranslation();
 
@@ -104,6 +118,47 @@ const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
                                 'Select due date'
                             )}
                         />
+                        <div>
+                            <label
+                                htmlFor="task-due-time"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                            >
+                                {t('task.dueTime', 'Due time')}
+                            </label>
+                            <input
+                                id="task-due-time"
+                                type="time"
+                                step={60}
+                                value={editedDueTime}
+                                onChange={(event) =>
+                                    onChangeTime(event.target.value)
+                                }
+                                disabled={isTimeDisabled}
+                                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                htmlFor="task-estimated-duration"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                            >
+                                {t(
+                                    'task.estimatedDuration',
+                                    'Estimated duration (minutes)'
+                                )}
+                            </label>
+                            <input
+                                id="task-estimated-duration"
+                                type="number"
+                                min={1}
+                                max={1440}
+                                value={editedEstimatedDuration}
+                                onChange={(event) =>
+                                    onChangeEstimatedDuration(event.target.value)
+                                }
+                                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                        </div>
                         <div className="flex justify-end space-x-2">
                             <button
                                 onClick={onSave}
@@ -163,6 +218,16 @@ const TaskDueDateCard: React.FC<TaskDueDateCardProps> = ({
                                             <span className="text-sm font-medium">
                                                 {display.formattedDate}
                                             </span>
+                                            {dueTimeDisplay && (
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {dueTimeDisplay}
+                                                </span>
+                                            )}
+                                            {estimatedDurationDisplay && (
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {estimatedDurationDisplay}
+                                                </span>
+                                            )}
                                             <span
                                                 className={`text-sm italic ${
                                                     overdue
