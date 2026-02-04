@@ -232,6 +232,15 @@ module.exports = (sequelize) => {
                 type: DataTypes.DATE,
                 allowNull: true,
             },
+            public_ics_token: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            public_ics_enabled: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
         },
         {
             tableName: 'users',

@@ -197,6 +197,7 @@ healthPaths.forEach(registerHealthCheck);
 const registerApiRoutes = (basePath) => {
     app.use(basePath, authModule.routes);
     app.use(basePath, featureFlagsModule.routes);
+    app.use(basePath, calendarModule.publicRoutes);
 
     app.use(basePath, requireAuth);
     app.use(basePath, tasksModule.routes);
