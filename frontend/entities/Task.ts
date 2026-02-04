@@ -11,6 +11,7 @@ export interface Task {
     priority?: PriorityType | number;
     due_date?: string;
     due_time_minutes?: number | null;
+    estimated_duration_minutes?: number | null;
     defer_until?: string;
     note?: string;
     tags?: Tag[];

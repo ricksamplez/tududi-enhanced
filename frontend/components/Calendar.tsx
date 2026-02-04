@@ -127,15 +127,32 @@ const Calendar: React.FC = () => {
                 taskEvents.push(taskEvent);
             }
 
+            const estimatedDurationMinutes =
+                task.estimated_duration_minutes &&
+                Number.isFinite(task.estimated_duration_minutes)
+                    ? task.estimated_duration_minutes
+                    : 60;
+
             // Add tasks with due dates
             if (task.due_date) {
                 const dueDate = parseDateString(task.due_date);
                 if (dueDate) {
+                    if (
+                        task.due_time_minutes !== null &&
+                        task.due_time_minutes !== undefined
+                    ) {
+                        const hours = Math.floor(task.due_time_minutes / 60);
+                        const minutes = task.due_time_minutes % 60;
+                        dueDate.setHours(hours, minutes, 0, 0);
+                    }
                     const taskEvent = {
                         id: `task-${task.id}`,
                         title: task.name || task.title || `Task ${task.id}`,
                         start: dueDate,
-                        end: new Date(dueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
+                        end: new Date(
+                            dueDate.getTime() +
+                                estimatedDurationMinutes * 60 * 1000
+                        ),
                         type: 'task' as const,
                         color: task.completed_at ? '#22c55e' : '#3b82f6', // Green if completed, blue if not
                     };

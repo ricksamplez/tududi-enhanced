@@ -51,6 +51,18 @@ describe('Tasks Routes', () => {
             expect(response.body.due_time_minutes).toBe(540);
         });
 
+        it('should accept estimated duration minutes', async () => {
+            const taskData = {
+                name: 'Estimated Task',
+                estimated_duration_minutes: 120,
+            };
+
+            const response = await agent.post('/api/task').send(taskData);
+
+            expect(response.status).toBe(201);
+            expect(response.body.estimated_duration_minutes).toBe(120);
+        });
+
         it('should reject invalid due time minutes', async () => {
             const taskData = {
                 name: 'Invalid Time Task',
@@ -62,6 +74,20 @@ describe('Tasks Routes', () => {
             expect(response.status).toBe(400);
             expect(response.body.error).toBe(
                 'Due time must be between 0 and 1439 minutes.'
+            );
+        });
+
+        it('should reject invalid estimated duration minutes', async () => {
+            const taskData = {
+                name: 'Invalid Duration Task',
+                estimated_duration_minutes: 0,
+            };
+
+            const response = await agent.post('/api/task').send(taskData);
+
+            expect(response.status).toBe(400);
+            expect(response.body.error).toBe(
+                'Estimated duration must be between 1 and 1440 minutes.'
             );
         });
 
@@ -185,6 +211,19 @@ describe('Tasks Routes', () => {
 
             expect(response.status).toBe(200);
             expect(response.body.due_time_minutes).toBe(615);
+        });
+
+        it('should update estimated duration minutes', async () => {
+            const updateData = {
+                estimated_duration_minutes: 90,
+            };
+
+            const response = await agent
+                .patch(`/api/task/${task.uid}`)
+                .send(updateData);
+
+            expect(response.status).toBe(200);
+            expect(response.body.estimated_duration_minutes).toBe(90);
         });
 
         it('should update recurring task name without transformation', async () => {

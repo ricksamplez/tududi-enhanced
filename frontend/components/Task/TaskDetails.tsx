@@ -101,6 +101,8 @@ const TaskDetails: React.FC = () => {
         task?.due_date || ''
     );
     const [editedDueTime, setEditedDueTime] = useState<string>('');
+    const [editedEstimatedDuration, setEditedEstimatedDuration] =
+        useState<string>('');
     const [isEditingDeferUntil, setIsEditingDeferUntil] = useState(false);
     const [editedDeferUntil, setEditedDeferUntil] = useState<string>(
         task?.defer_until || ''
@@ -136,6 +138,15 @@ const TaskDetails: React.FC = () => {
         const minutes = (dueTimeMinutes % 60).toString().padStart(2, '0');
         setEditedDueTime(`${hours}:${minutes}`);
     }, [task?.due_time_minutes]);
+
+    useEffect(() => {
+        const durationMinutes = task?.estimated_duration_minutes;
+        if (durationMinutes === null || durationMinutes === undefined) {
+            setEditedEstimatedDuration('');
+            return;
+        }
+        setEditedEstimatedDuration(String(durationMinutes));
+    }, [task?.estimated_duration_minutes]);
 
     useEffect(() => {
         if (!editedDueDate) {
@@ -306,6 +317,12 @@ const TaskDetails: React.FC = () => {
             const minutes = (dueTimeMinutes % 60).toString().padStart(2, '0');
             setEditedDueTime(`${hours}:${minutes}`);
         }
+        const durationMinutes = task?.estimated_duration_minutes;
+        setEditedEstimatedDuration(
+            durationMinutes === null || durationMinutes === undefined
+                ? ''
+                : String(durationMinutes)
+        );
         setIsEditingDueDate(true);
     };
 
@@ -339,10 +356,22 @@ const TaskDetails: React.FC = () => {
             ? parseTimeToMinutes(editedDueTime)
             : null;
         const currentDueTimeMinutes = task.due_time_minutes ?? null;
+        const parsedEstimatedDuration =
+            editedEstimatedDuration.trim() === ''
+                ? null
+                : Number(editedEstimatedDuration);
+        const nextEstimatedDurationMinutes = Number.isNaN(
+            parsedEstimatedDuration
+        )
+            ? null
+            : parsedEstimatedDuration;
+        const currentEstimatedDurationMinutes =
+            task.estimated_duration_minutes ?? null;
 
         if (
             (editedDueDate || '') === (task.due_date || '') &&
-            nextDueTimeMinutes === currentDueTimeMinutes
+            nextDueTimeMinutes === currentDueTimeMinutes &&
+            nextEstimatedDurationMinutes === currentEstimatedDurationMinutes
         ) {
             setIsEditingDueDate(false);
             return;
@@ -386,6 +415,7 @@ const TaskDetails: React.FC = () => {
                 ...task,
                 due_date: editedDueDate || null,
                 due_time_minutes: nextDueTimeMinutes,
+                estimated_duration_minutes: nextEstimatedDurationMinutes,
             });
 
             if (uid) {
@@ -421,6 +451,11 @@ const TaskDetails: React.FC = () => {
                           .toString()
                           .padStart(2, '0')}`
             );
+            setEditedEstimatedDuration(
+                currentEstimatedDurationMinutes === null
+                    ? ''
+                    : String(currentEstimatedDurationMinutes)
+            );
             setIsEditingDueDate(false);
         }
     };
@@ -437,6 +472,10 @@ const TaskDetails: React.FC = () => {
                       .padStart(2, '0')}:${(dueTimeMinutes % 60)
                       .toString()
                       .padStart(2, '0')}`
+        );
+        const durationMinutes = task?.estimated_duration_minutes ?? null;
+        setEditedEstimatedDuration(
+            durationMinutes === null ? '' : String(durationMinutes)
         );
     };
 
@@ -1226,8 +1265,14 @@ const TaskDetails: React.FC = () => {
                                     isEditing={isEditingDueDate}
                                     editedDueDate={editedDueDate}
                                     editedDueTime={editedDueTime}
+                                    editedEstimatedDuration={
+                                        editedEstimatedDuration
+                                    }
                                     onChangeDate={setEditedDueDate}
                                     onChangeTime={setEditedDueTime}
+                                    onChangeEstimatedDuration={
+                                        setEditedEstimatedDuration
+                                    }
                                     onStartEdit={handleStartDueDateEdit}
                                     onSave={handleSaveDueDate}
                                     onCancel={handleCancelDueDateEdit}
@@ -1244,6 +1289,14 @@ const TaskDetails: React.FC = () => {
                                               )
                                                   .toString()
                                                   .padStart(2, '0')}`
+                                    }
+                                    estimatedDurationDisplay={
+                                        task.estimated_duration_minutes ===
+                                            null ||
+                                        task.estimated_duration_minutes ===
+                                            undefined
+                                            ? null
+                                            : `${task.estimated_duration_minutes} min`
                                     }
                                     isTimeDisabled={!editedDueDate}
                                 />
