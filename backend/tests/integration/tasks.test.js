@@ -39,6 +39,32 @@ describe('Tasks Routes', () => {
             expect(response.body.user_id).toBe(user.id);
         });
 
+        it('should accept due time minutes', async () => {
+            const taskData = {
+                name: 'Timed Task',
+                due_time_minutes: 540,
+            };
+
+            const response = await agent.post('/api/task').send(taskData);
+
+            expect(response.status).toBe(201);
+            expect(response.body.due_time_minutes).toBe(540);
+        });
+
+        it('should reject invalid due time minutes', async () => {
+            const taskData = {
+                name: 'Invalid Time Task',
+                due_time_minutes: 2000,
+            };
+
+            const response = await agent.post('/api/task').send(taskData);
+
+            expect(response.status).toBe(400);
+            expect(response.body.error).toBe(
+                'Due time must be between 0 and 1439 minutes.'
+            );
+        });
+
         it('should require authentication', async () => {
             const taskData = {
                 name: 'Test Task',
@@ -146,6 +172,19 @@ describe('Tasks Routes', () => {
             expect(response.body.note).toBe(updateData.note);
             expect(response.body.priority).toBe(updateData.priority);
             expect(response.body.status).toBe(updateData.status);
+        });
+
+        it('should update due time minutes', async () => {
+            const updateData = {
+                due_time_minutes: 615,
+            };
+
+            const response = await agent
+                .patch(`/api/task/${task.uid}`)
+                .send(updateData);
+
+            expect(response.status).toBe(200);
+            expect(response.body.due_time_minutes).toBe(615);
         });
 
         it('should update recurring task name without transformation', async () => {

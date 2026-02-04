@@ -75,8 +75,23 @@ function validateDeferUntilAndDueDate(deferUntil, dueDate) {
     }
 }
 
+function validateDueTimeMinutes(dueTimeMinutes) {
+    if (dueTimeMinutes === undefined || dueTimeMinutes === null) {
+        return;
+    }
+
+    if (!Number.isInteger(dueTimeMinutes)) {
+        throw new Error('Due time must be a whole number of minutes.');
+    }
+
+    if (dueTimeMinutes < 0 || dueTimeMinutes > 1439) {
+        throw new Error('Due time must be between 0 and 1439 minutes.');
+    }
+}
+
 module.exports = {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
+    validateDueTimeMinutes,
 };
