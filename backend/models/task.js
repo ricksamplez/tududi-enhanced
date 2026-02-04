@@ -24,6 +24,22 @@ module.exports = (sequelize) => {
                 type: DataTypes.DATE,
                 allowNull: true,
             },
+            due_time_minutes: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                validate: {
+                    min: 0,
+                    max: 1439,
+                },
+            },
+            estimated_duration_minutes: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                validate: {
+                    min: 1,
+                    max: 1440,
+                },
+            },
             defer_until: {
                 type: DataTypes.DATE,
                 allowNull: true,

@@ -34,7 +34,26 @@ function validateUid(uid) {
     }
 }
 
+function validateColor(color) {
+    if (color === undefined || color === null || color === '') {
+        return null;
+    }
+
+    if (typeof color !== 'string') {
+        throw new ValidationError('Color must be a string.');
+    }
+
+    const normalized = color.trim();
+
+    if (!/^#([0-9a-fA-F]{6})$/.test(normalized)) {
+        throw new ValidationError('Color must be a hex value like #RRGGBB.');
+    }
+
+    return normalized;
+}
+
 module.exports = {
     validateName,
     validateUid,
+    validateColor,
 };
