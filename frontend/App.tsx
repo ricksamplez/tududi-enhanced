@@ -17,6 +17,7 @@ import NoteDetails from './components/Note/NoteDetails';
 import Calendar from './components/Calendar';
 import Timetable from './components/Timetable';
 import WeekPlanning from './components/Planning/WeekPlanning';
+import ScheduleView from './components/Schedule/ScheduleView';
 import ProfileSettings from './components/Profile/ProfileSettings';
 import About from './components/About';
 import BackupRestore from './components/Backup/BackupRestore';
@@ -259,6 +260,10 @@ const App: React.FC = () => {
                             <Route
                                 path="/planning"
                                 element={<WeekPlanning />}
+                            />
+                            <Route
+                                path="/schedule"
+                                element={<ScheduleView />}
                             />
                             <Route
                                 path="/timetable"

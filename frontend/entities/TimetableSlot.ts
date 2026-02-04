@@ -4,8 +4,11 @@ export interface TimetableSlot {
     weekday: number;
     start_minute: number;
     end_minute: number;
-    slot_type: 'work' | 'pause';
     label?: string | null;
+    area_id?: number | null;
+    project_ids?: number[];
+    projects?: { id: number; name: string }[];
+    area?: { id: number; name: string };
     created_at?: string;
     updated_at?: string;
 }

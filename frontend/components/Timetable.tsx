@@ -7,6 +7,10 @@ import {
     updateTimetableSlot,
 } from '../utils/timetableService';
 import { TimetableSlot } from '../entities/TimetableSlot';
+import { Area } from '../entities/Area';
+import { Project } from '../entities/Project';
+import { fetchAreas } from '../utils/areasService';
+import { fetchProjects } from '../utils/projectsService';
 import { useToast } from './Shared/ToastContext';
 
 const WEEKDAYS = [
@@ -38,6 +42,8 @@ const Timetable: React.FC = () => {
     const { t } = useTranslation();
     const { showSuccessToast, showErrorToast } = useToast();
     const [slots, setSlots] = useState<TimetableSlot[]>([]);
+    const [areas, setAreas] = useState<Area[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [editingSlotId, setEditingSlotId] = useState<number | null>(null);
@@ -45,21 +51,30 @@ const Timetable: React.FC = () => {
         weekday: 1,
         startTime: '09:00',
         endTime: '17:00',
-        slotType: 'work',
         label: '',
+        areaId: '',
+        projectIds: [] as number[],
     });
     const [editState, setEditState] = useState({
         startTime: '',
         endTime: '',
-        slotType: 'work',
         label: '',
+        areaId: '',
+        projectIds: [] as number[],
     });
 
     useEffect(() => {
         const loadSlots = async () => {
             try {
-                const data = await fetchTimetableSlots();
-                setSlots(Array.isArray(data) ? data : []);
+                const [slotsData, areasData, projectsData] = await Promise.all([
+                    fetchTimetableSlots(),
+                    fetchAreas(),
+                    fetchProjects('all', ''),
+                ]);
+                const safeSlots = Array.isArray(slotsData) ? slotsData : [];
+                setSlots(safeSlots);
+                setAreas(Array.isArray(areasData) ? areasData : []);
+                setProjects(Array.isArray(projectsData) ? projectsData : []);
             } catch (error) {
                 console.error('Failed to load timetable slots:', error);
                 showErrorToast(
@@ -84,6 +99,25 @@ const Timetable: React.FC = () => {
         );
         return grouped;
     }, [slots]);
+
+    const areaById = useMemo(() => {
+        return areas.reduce<Record<number, Area>>((acc, area) => {
+            if (area.id !== undefined) {
+                acc[area.id] = area;
+            }
+            return acc;
+        }, {});
+    }, [areas]);
+
+    const handleProjectSelection = (
+        event: React.ChangeEvent<HTMLSelectElement>,
+        onChange: (values: number[]) => void
+    ) => {
+        const selected = Array.from(event.target.selectedOptions).map((option) =>
+            Number(option.value)
+        );
+        onChange(selected.filter((value) => !Number.isNaN(value)));
+    };
 
     const isValidTimeRange = (
         startMinute: number | null,
@@ -121,14 +155,18 @@ const Timetable: React.FC = () => {
                 weekday: formState.weekday,
                 start_minute: startMinute,
                 end_minute: endMinute,
-                slot_type: formState.slotType as 'work' | 'pause',
                 label: formState.label || null,
+                area_id: formState.areaId
+                    ? Number(formState.areaId)
+                    : null,
+                project_ids: formState.projectIds,
             };
             const created = await createTimetableSlot(payload);
             setSlots((prev) => [...prev, created]);
             setFormState((prev) => ({
                 ...prev,
                 label: '',
+                projectIds: [],
             }));
             showSuccessToast(
                 t('timetable.created', 'Timetable slot created')
@@ -159,12 +197,16 @@ const Timetable: React.FC = () => {
     };
 
     const startEdit = (slot: TimetableSlot) => {
+        const projectIds = slot.projects
+            ? slot.projects.map((project) => project.id)
+            : [];
         setEditingSlotId(slot.id || null);
         setEditState({
             startTime: toTime(slot.start_minute),
             endTime: toTime(slot.end_minute),
-            slotType: slot.slot_type,
             label: slot.label || '',
+            areaId: slot.area_id ? String(slot.area_id) : '',
+            projectIds,
         });
     };
 
@@ -181,8 +223,9 @@ const Timetable: React.FC = () => {
             const updated = await updateTimetableSlot(slot.id, {
                 start_minute: startMinute,
                 end_minute: endMinute,
-                slot_type: editState.slotType as 'work' | 'pause',
                 label: editState.label || null,
+                area_id: editState.areaId ? Number(editState.areaId) : null,
+                project_ids: editState.projectIds,
             });
             setSlots((prev) =>
                 prev.map((item) => (item.id === updated.id ? updated : item))
@@ -218,7 +261,7 @@ const Timetable: React.FC = () => {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                     {t(
                         'timetable.subtitle',
-                        'Define work and pause slots for each weekday.'
+                        'Define work slots for each weekday.'
                     )}
                 </p>
             </div>
@@ -227,7 +270,7 @@ const Timetable: React.FC = () => {
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                     {t('timetable.addSlot', 'Add slot')}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <select
                         value={formState.weekday}
                         onChange={(event) =>
@@ -266,23 +309,6 @@ const Timetable: React.FC = () => {
                         }
                         className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     />
-                    <select
-                        value={formState.slotType}
-                        onChange={(event) =>
-                            setFormState((prev) => ({
-                                ...prev,
-                                slotType: event.target.value,
-                            }))
-                        }
-                        className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                    >
-                        <option value="work">
-                            {t('timetable.slotType.work', 'Work')}
-                        </option>
-                        <option value="pause">
-                            {t('timetable.slotType.pause', 'Pause')}
-                        </option>
-                    </select>
                     <input
                         type="text"
                         value={formState.label}
@@ -295,6 +321,44 @@ const Timetable: React.FC = () => {
                         placeholder={t('timetable.label', 'Label (optional)')}
                         className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     />
+                    <select
+                        value={formState.areaId}
+                        onChange={(event) =>
+                            setFormState((prev) => ({
+                                ...prev,
+                                areaId: event.target.value,
+                            }))
+                        }
+                        className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                    >
+                        <option value="">
+                            {t('timetable.area', 'Area (optional)')}
+                        </option>
+                        {areas.map((area) => (
+                            <option key={area.id} value={area.id}>
+                                {area.name}
+                            </option>
+                        ))}
+                    </select>
+                    <select
+                        multiple
+                        value={formState.projectIds.map(String)}
+                        onChange={(event) =>
+                            handleProjectSelection(event, (values) =>
+                                setFormState((prev) => ({
+                                    ...prev,
+                                    projectIds: values,
+                                }))
+                            )
+                        }
+                        className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                    >
+                        {projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                                {project.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
                 <button
                     type="button"
@@ -334,14 +398,10 @@ const Timetable: React.FC = () => {
                                         return (
                                             <li
                                                 key={slot.id}
-                                                className={`rounded-lg border border-gray-200 dark:border-gray-700 p-3 ${
-                                                    slot.slot_type === 'pause'
-                                                        ? 'timetable-pause'
-                                                        : 'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                                                }`}
+                                                className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                             >
                                                 {isEditing ? (
-                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                                                         <input
                                                             type="time"
                                                             value={
@@ -378,36 +438,6 @@ const Timetable: React.FC = () => {
                                                             }
                                                             className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                                                         />
-                                                        <select
-                                                            value={
-                                                                editState.slotType
-                                                            }
-                                                            onChange={(event) =>
-                                                                setEditState(
-                                                                    (prev) => ({
-                                                                        ...prev,
-                                                                        slotType:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    })
-                                                                )
-                                                            }
-                                                            className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                                                        >
-                                                            <option value="work">
-                                                                {t(
-                                                                    'timetable.slotType.work',
-                                                                    'Work'
-                                                                )}
-                                                            </option>
-                                                            <option value="pause">
-                                                                {t(
-                                                                    'timetable.slotType.pause',
-                                                                    'Pause'
-                                                                )}
-                                                            </option>
-                                                        </select>
                                                         <input
                                                             type="text"
                                                             value={
@@ -429,7 +459,82 @@ const Timetable: React.FC = () => {
                                                                 'Label (optional)'
                                                             )}
                                                         />
-                                                        <div className="flex gap-2 md:col-span-4">
+                                                        <select
+                                                            value={
+                                                                editState.areaId
+                                                            }
+                                                            onChange={(event) =>
+                                                                setEditState(
+                                                                    (prev) => ({
+                                                                        ...prev,
+                                                                        areaId:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    })
+                                                                )
+                                                            }
+                                                            className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                                                        >
+                                                            <option value="">
+                                                                {t(
+                                                                    'timetable.area',
+                                                                    'Area (optional)'
+                                                                )}
+                                                            </option>
+                                                            {areas.map((area) => (
+                                                                <option
+                                                                    key={
+                                                                        area.id
+                                                                    }
+                                                                    value={
+                                                                        area.id
+                                                                    }
+                                                                >
+                                                                    {area.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <select
+                                                            multiple
+                                                            value={editState.projectIds.map(
+                                                                String
+                                                            )}
+                                                            onChange={(event) =>
+                                                                handleProjectSelection(
+                                                                    event,
+                                                                    (values) =>
+                                                                        setEditState(
+                                                                            (
+                                                                                prev
+                                                                            ) => ({
+                                                                                ...prev,
+                                                                                projectIds:
+                                                                                    values,
+                                                                            })
+                                                                        )
+                                                                )
+                                                            }
+                                                            className="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
+                                                        >
+                                                            {projects.map(
+                                                                (project) => (
+                                                                    <option
+                                                                        key={
+                                                                            project.id
+                                                                        }
+                                                                        value={
+                                                                            project.id
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            project.name
+                                                                        }
+                                                                    </option>
+                                                                )
+                                                            )}
+                                                        </select>
+                                                        <div className="flex gap-2 md:col-span-5">
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>
@@ -462,7 +567,7 @@ const Timetable: React.FC = () => {
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                                        <div>
+                                                        <div className="space-y-1">
                                                             <div className="text-sm font-semibold">
                                                                 {toTime(
                                                                     slot.start_minute
@@ -472,21 +577,38 @@ const Timetable: React.FC = () => {
                                                                     slot.end_minute
                                                                 )}
                                                             </div>
-                                                            <div className="text-xs opacity-80">
-                                                                {slot.slot_type ===
-                                                                'pause'
-                                                                    ? t(
-                                                                          'timetable.slotType.pause',
-                                                                          'Pause'
-                                                                      )
-                                                                    : t(
-                                                                          'timetable.slotType.work',
-                                                                          'Work'
-                                                                      )}
-                                                                {slot.label
-                                                                    ? ` · ${slot.label}`
-                                                                    : ''}
-                                                            </div>
+                                                            {slot.label && (
+                                                                <div className="text-xs opacity-80">
+                                                                    {slot.label}
+                                                                </div>
+                                                            )}
+                                                            {(slot.area_id ||
+                                                                slot.projects
+                                                                    ?.length) && (
+                                                                <div className="text-xs opacity-80">
+                                                                    {slot.area_id &&
+                                                                        areaById[
+                                                                            slot
+                                                                                .area_id
+                                                                        ]?.name}
+                                                                    {slot.area_id &&
+                                                                        slot
+                                                                            .projects
+                                                                            ?.length
+                                                                        ? ' · '
+                                                                        : ''}
+                                                                    {slot.projects
+                                                                        ?.map(
+                                                                            (
+                                                                                project
+                                                                            ) =>
+                                                                                project.name
+                                                                        )
+                                                                        .join(
+                                                                            ', '
+                                                                        )}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <button
