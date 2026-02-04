@@ -14,6 +14,14 @@ if (
 const environment = process.env.NODE_ENV;
 const production = process.env.NODE_ENV === 'production';
 const projectRootPath = path.join(__dirname, '..'); // backend root path
+const sessionSecret = process.env.TUDUDI_SESSION_SECRET;
+
+if (production && !sessionSecret) {
+    console.error(
+        'TUDUDI_SESSION_SECRET must be set in production to keep sessions secure.'
+    );
+    process.exit(1);
+}
 
 const credentials = {
     google: {
@@ -90,9 +98,7 @@ const config = {
 
     production,
 
-    secret:
-        process.env.TUDUDI_SESSION_SECRET ||
-        require('crypto').randomBytes(64).toString('hex'),
+    secret: sessionSecret || require('crypto').randomBytes(64).toString('hex'),
 
     credentials,
 
