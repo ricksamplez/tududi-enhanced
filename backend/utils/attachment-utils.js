@@ -82,10 +82,17 @@ function isTextFile(mimetype) {
  * Delete file from disk safely
  */
 async function deleteFileFromDisk(filepath) {
+    if (!filepath) {
+        return false;
+    }
+
     try {
         await fs.unlink(filepath);
         return true;
     } catch (error) {
+        if (error && error.code === 'ENOENT') {
+            return false;
+        }
         logError('Error deleting file from disk:', error);
         return false;
     }
