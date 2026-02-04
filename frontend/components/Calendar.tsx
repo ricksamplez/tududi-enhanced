@@ -18,7 +18,6 @@ import CalendarDayView from './Calendar/CalendarDayView';
 import { getApiPath } from '../config/paths';
 import { Link, useNavigate } from 'react-router-dom';
 import { parseDateString } from '../utils/dateUtils';
-import { useToast } from './Shared/ToastContext';
 
 const getLocale = (language: string) => {
     switch (language) {
@@ -49,7 +48,6 @@ interface CalendarEvent {
 const Calendar: React.FC = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
-    const { showSuccessToast, showErrorToast } = useToast();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState<'month' | 'week' | 'day'>('month');
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -58,13 +56,6 @@ const Calendar: React.FC = () => {
     const [allTasks, setAllTasks] = useState<any[]>([]);
     const [, setProjects] = useState<Project[]>([]);
     const [isEventDetailModalOpen, setIsEventDetailModalOpen] = useState(false);
-    const [isPublicIcsPanelOpen, setIsPublicIcsPanelOpen] = useState(false);
-    const [publicIcsInfo, setPublicIcsInfo] = useState<{
-        enabled: boolean;
-        url: string | null;
-    } | null>(null);
-    const [publicIcsError, setPublicIcsError] = useState<string | null>(null);
-    const [isPublicIcsLoading, setIsPublicIcsLoading] = useState(false);
 
     // Dispatch global modal events
 
@@ -75,12 +66,6 @@ const Calendar: React.FC = () => {
         loadTasks();
         loadProjects();
     }, []);
-
-    useEffect(() => {
-        if (isPublicIcsPanelOpen && !publicIcsInfo) {
-            fetchPublicIcsInfo();
-        }
-    }, [isPublicIcsPanelOpen, publicIcsInfo]);
 
     const loadTasks = async () => {
         setIsLoadingTasks(true);
@@ -209,151 +194,6 @@ const Calendar: React.FC = () => {
         });
 
         return taskEvents;
-    };
-
-    const fetchPublicIcsInfo = async () => {
-        setIsPublicIcsLoading(true);
-        setPublicIcsError(null);
-        try {
-            const response = await fetch(getApiPath('calendar/ics/public'), {
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                throw new Error('Failed to load public calendar info');
-            }
-            const data = await response.json();
-            setPublicIcsInfo(data);
-        } catch (error) {
-            console.error('Error loading public ICS info:', error);
-            setPublicIcsError(
-                t(
-                    'calendar.publicIcsLoadError',
-                    'Failed to load public calendar info.'
-                )
-            );
-        } finally {
-            setIsPublicIcsLoading(false);
-        }
-    };
-
-    const enablePublicIcs = async () => {
-        setIsPublicIcsLoading(true);
-        setPublicIcsError(null);
-        try {
-            const response = await fetch(getApiPath('calendar/ics/public'), {
-                method: 'POST',
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                throw new Error('Failed to enable public calendar feed');
-            }
-            const data = await response.json();
-            setPublicIcsInfo(data);
-            showSuccessToast(
-                t(
-                    'calendar.publicIcsEnabledMessage',
-                    'Public calendar feed enabled.'
-                )
-            );
-        } catch (error) {
-            console.error('Error enabling public ICS:', error);
-            showErrorToast(
-                t(
-                    'calendar.publicIcsEnableError',
-                    'Failed to enable public calendar feed.'
-                )
-            );
-        } finally {
-            setIsPublicIcsLoading(false);
-        }
-    };
-
-    const rotatePublicIcs = async () => {
-        setIsPublicIcsLoading(true);
-        setPublicIcsError(null);
-        try {
-            const response = await fetch(
-                getApiPath('calendar/ics/public/rotate'),
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                }
-            );
-            if (!response.ok) {
-                throw new Error('Failed to rotate public calendar feed');
-            }
-            const data = await response.json();
-            setPublicIcsInfo(data);
-            showSuccessToast(
-                t(
-                    'calendar.publicIcsRotatedMessage',
-                    'Public calendar feed rotated.'
-                )
-            );
-        } catch (error) {
-            console.error('Error rotating public ICS:', error);
-            showErrorToast(
-                t(
-                    'calendar.publicIcsRotateError',
-                    'Failed to rotate public calendar feed.'
-                )
-            );
-        } finally {
-            setIsPublicIcsLoading(false);
-        }
-    };
-
-    const disablePublicIcs = async () => {
-        setIsPublicIcsLoading(true);
-        setPublicIcsError(null);
-        try {
-            const response = await fetch(getApiPath('calendar/ics/public'), {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                throw new Error('Failed to disable public calendar feed');
-            }
-            const data = await response.json();
-            setPublicIcsInfo(data);
-            showSuccessToast(
-                t(
-                    'calendar.publicIcsDisabledMessage',
-                    'Public calendar feed disabled.'
-                )
-            );
-        } catch (error) {
-            console.error('Error disabling public ICS:', error);
-            showErrorToast(
-                t(
-                    'calendar.publicIcsDisableError',
-                    'Failed to disable public calendar feed.'
-                )
-            );
-        } finally {
-            setIsPublicIcsLoading(false);
-        }
-    };
-
-    const copyPublicIcsUrl = async () => {
-        if (!publicIcsInfo?.url) return;
-        try {
-            await navigator.clipboard.writeText(publicIcsInfo.url);
-            showSuccessToast(
-                t(
-                    'calendar.publicIcsCopied',
-                    'Public calendar link copied.'
-                )
-            );
-        } catch (error) {
-            console.error('Error copying public ICS URL:', error);
-            showErrorToast(
-                t(
-                    'calendar.publicIcsCopyError',
-                    'Failed to copy public calendar link.'
-                )
-            );
-        }
     };
 
     const loadProjects = async () => {
@@ -569,15 +409,6 @@ const Calendar: React.FC = () => {
                         >
                             {t('calendar.exportIcs', 'Export ICS')}
                         </a>
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setIsPublicIcsPanelOpen((prev) => !prev)
-                            }
-                            className="px-4 py-2.5 text-sm font-semibold bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-200 shadow-sm"
-                        >
-                            {t('calendar.subscribeIcs', 'Subscribe')}
-                        </button>
                         {/* View selector */}
                         <div className="flex rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 p-0.5 shadow-inner">
                             {['month', 'week', 'day'].map((viewType) => (
@@ -622,135 +453,6 @@ const Calendar: React.FC = () => {
                         </button>
                     </div>
                 </div>
-
-                {isPublicIcsPanelOpen && (
-                    <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                                    {t(
-                                        'calendar.publicIcsTitle',
-                                        'Public ICS feed'
-                                    )}
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {t(
-                                        'calendar.publicIcsDescription',
-                                        'Use this link to subscribe from your calendar app.'
-                                    )}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsPublicIcsPanelOpen(false)}
-                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                aria-label={t(
-                                    'calendar.closePublicIcsPanel',
-                                    'Close public feed panel'
-                                )}
-                            >
-                                <XMarkIcon className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        {publicIcsError && (
-                            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-                                {publicIcsError}
-                            </div>
-                        )}
-
-                        {isPublicIcsLoading ? (
-                            <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                                {t(
-                                    'calendar.publicIcsLoading',
-                                    'Loading public feed...'
-                                )}
-                            </div>
-                        ) : publicIcsInfo?.enabled && publicIcsInfo.url ? (
-                            <div className="mt-4 space-y-3">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {t(
-                                        'calendar.publicIcsUrlLabel',
-                                        'Subscription link'
-                                    )}
-                                </label>
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={publicIcsInfo.url}
-                                        className="flex-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
-                                    />
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={copyPublicIcsUrl}
-                                            className="px-3 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-                                        >
-                                            {t(
-                                                'calendar.publicIcsCopy',
-                                                'Copy'
-                                            )}
-                                        </button>
-                                        <a
-                                            href={publicIcsInfo.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="px-3 py-2 text-sm font-semibold rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition inline-flex items-center gap-1"
-                                        >
-                                            <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                                            {t(
-                                                'calendar.publicIcsOpen',
-                                                'Open'
-                                            )}
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={rotatePublicIcs}
-                                        className="px-3 py-2 text-sm font-semibold rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                                    >
-                                        {t(
-                                            'calendar.publicIcsRotate',
-                                            'Rotate link'
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={disablePublicIcs}
-                                        className="px-3 py-2 text-sm font-semibold rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 transition"
-                                    >
-                                        {t(
-                                            'calendar.publicIcsDisable',
-                                            'Disable public feed'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="mt-4 space-y-3">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    {t(
-                                        'calendar.publicIcsDisabled',
-                                        'Public feed is currently disabled.'
-                                    )}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={enablePublicIcs}
-                                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-                                >
-                                    {t(
-                                        'calendar.publicIcsEnable',
-                                        'Enable public feed'
-                                    )}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
 
                 {/* Loading indicator */}
                 {isLoadingTasks && (
