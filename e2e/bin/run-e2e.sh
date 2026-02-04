@@ -26,9 +26,12 @@ cd "$ROOT_DIR"
 
 # Check if Playwright is installed
 if ! npx playwright --version >/dev/null 2>&1; then
-  yellow "Installing Playwright browsers..."
+  yellow "Installing Playwright..."
   npx playwright install --with-deps
 fi
+
+yellow "Ensuring Playwright Chromium browsers are installed..."
+npx playwright install --with-deps chromium
 
 # Start backend and frontend
 cd "$ROOT_DIR"
@@ -113,16 +116,30 @@ done
 cd "$ROOT_DIR"
 
 yellow "Running Playwright tests..."
-APP_URL="$FRONTEND_URL" \
-E2E_EMAIL="${E2E_EMAIL:-test@tududi.com}" \
-E2E_PASSWORD="${E2E_PASSWORD:-password123}" \
-bash -c '
-  if [ "${E2E_MODE:-}" = "ui" ]; then
-    npx playwright test --ui --config=e2e/playwright.config.ts
-  elif [ "${E2E_MODE:-}" = "headed" ]; then
-    # Respect E2E_SLOWMO and run only Chromium sequentially
-    npx playwright test --headed --project=Chromium --workers=1 --config=e2e/playwright.config.ts
+export APP_URL="$FRONTEND_URL"
+export FRONTEND_URL="$FRONTEND_URL"
+export E2E_EMAIL="${E2E_EMAIL:-test@tududi.com}"
+export E2E_PASSWORD="${E2E_PASSWORD:-password123}"
+
+PLAYWRIGHT_CMD="npx playwright test --config=e2e/playwright.config.ts"
+USE_UI_MODE=false
+if [ "${E2E_MODE:-}" = "ui" ]; then
+  USE_UI_MODE=true
+elif [ "${E2E_MODE:-}" = "headed" ]; then
+  # Respect E2E_SLOWMO and run only Chromium sequentially
+  PLAYWRIGHT_CMD="npx playwright test --headed --project=Chromium --workers=1 --config=e2e/playwright.config.ts"
+fi
+
+if [ "${USE_UI_MODE}" = "true" ]; then
+  if [ -t 1 ]; then
+    PLAYWRIGHT_CMD="npx playwright test --ui --config=e2e/playwright.config.ts"
   else
-    npx playwright test --config=e2e/playwright.config.ts
+    yellow "Non-interactive session detected; running standard Playwright tests instead of UI mode."
   fi
-'
+fi
+
+if [ -n "${E2E_MODE:-}" ] && command -v xvfb-run >/dev/null 2>&1; then
+  PLAYWRIGHT_CMD="xvfb-run -a ${PLAYWRIGHT_CMD}"
+fi
+
+bash -c "${PLAYWRIGHT_CMD}"

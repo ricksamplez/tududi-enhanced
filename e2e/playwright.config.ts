@@ -3,7 +3,8 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: process.cwd() + '/.env' });
 
-const baseURL = process.env.APP_URL || 'http://localhost:8080';
+const baseURL =
+  process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:8080';
 const slowMoMs = Number(process.env.E2E_SLOWMO || '0') || 0;
 
 export default defineConfig({
