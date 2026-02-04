@@ -80,7 +80,9 @@ const {
     requireTaskWriteAccess,
 } = require('./middleware/access');
 
-if (process.env.NODE_ENV === 'development') {
+const isDebugLoggingEnabled = process.env.NODE_ENV === 'development';
+
+if (isDebugLoggingEnabled) {
     enableQueryLogging();
 }
 
@@ -100,24 +102,28 @@ function expandRecurringTasks(tasks, maxDays = 7, statusFilter = null) {
             return;
         }
 
-        console.log('[DEBUG] Processing recurring task:', {
-            id: task.id,
-            name: task.name,
-            recurrence_type: task.recurrence_type,
-            due_date: task.due_date,
-            status: task.status,
-            completed_at: task.completed_at,
-            has_due_date: !!task.due_date,
-            statusFilter: statusFilter,
-        });
+        if (isDebugLoggingEnabled) {
+            console.log('[DEBUG] Processing recurring task:', {
+                id: task.id,
+                name: task.name,
+                recurrence_type: task.recurrence_type,
+                due_date: task.due_date,
+                status: task.status,
+                completed_at: task.completed_at,
+                has_due_date: !!task.due_date,
+                statusFilter: statusFilter,
+            });
+        }
 
         if (
             (statusFilter === 'completed' || statusFilter === 'done') &&
             (task.status === 2 || task.status === 'done')
         ) {
-            console.log(
-                '[DEBUG] Task is completed and filter is completed, showing actual task'
-            );
+            if (isDebugLoggingEnabled) {
+                console.log(
+                    '[DEBUG] Task is completed and filter is completed, showing actual task'
+                );
+            }
             expandedTasks.push(task);
             return;
         }
@@ -131,10 +137,12 @@ function expandRecurringTasks(tasks, maxDays = 7, statusFilter = null) {
                     : new Date(task.due_date || now);
             const nextDate = calculateNextDueDate(task, baseDate);
             startFrom = nextDate || now;
-            console.log(
-                '[DEBUG] Task is completed, starting from next occurrence:',
-                startFrom
-            );
+            if (isDebugLoggingEnabled) {
+                console.log(
+                    '[DEBUG] Task is completed, starting from next occurrence:',
+                    startFrom
+                );
+            }
         } else if (startFrom < now) {
             let nextDate = startFrom;
             let iterations = 0;
@@ -148,13 +156,17 @@ function expandRecurringTasks(tasks, maxDays = 7, statusFilter = null) {
             startFrom = nextDate || now;
         }
 
-        console.log('[DEBUG] Starting from date:', startFrom);
+        if (isDebugLoggingEnabled) {
+            console.log('[DEBUG] Starting from date:', startFrom);
+        }
         const occurrences = calculateVirtualOccurrences(
             task,
             maxDays,
             startFrom
         );
-        console.log('[DEBUG] Generated occurrences:', occurrences.length);
+        if (isDebugLoggingEnabled) {
+            console.log('[DEBUG] Generated occurrences:', occurrences.length);
+        }
 
         occurrences.forEach((occurrence, index) => {
             const virtualTask = {
@@ -192,25 +204,41 @@ router.get('/tasks', async (req, res) => {
         let tasks = await filterTasksByParams(req.query, userId, timezone);
 
         if (type === 'upcoming' && groupBy === 'day') {
-            console.log('[DEBUG] Expanding recurring tasks for /upcoming');
-            console.log('[DEBUG] Total tasks before expansion:', tasks.length);
-            console.log(
-                '[DEBUG] Recurring tasks:',
-                tasks
-                    .filter(
-                        (t) => t.recurrence_type && t.recurrence_type !== 'none'
-                    )
-                    .map((t) => ({
-                        id: t.id,
-                        name: t.name,
-                        recurrence_type: t.recurrence_type,
-                        due_date: t.due_date,
-                        recurring_parent_id: t.recurring_parent_id,
-                    }))
-            );
-            const days = maxDays ? parseInt(maxDays, 10) : 7;
+            if (isDebugLoggingEnabled) {
+                console.log('[DEBUG] Expanding recurring tasks for /upcoming');
+                console.log(
+                    '[DEBUG] Total tasks before expansion:',
+                    tasks.length
+                );
+                console.log(
+                    '[DEBUG] Recurring tasks:',
+                    tasks
+                        .filter(
+                            (t) =>
+                                t.recurrence_type &&
+                                t.recurrence_type !== 'none'
+                        )
+                        .map((t) => ({
+                            id: t.id,
+                            name: t.name,
+                            recurrence_type: t.recurrence_type,
+                            due_date: t.due_date,
+                            recurring_parent_id: t.recurring_parent_id,
+                        }))
+                );
+            }
+            const parsedMaxDays = maxDays ? parseInt(maxDays, 10) : NaN;
+            const MAX_UPCOMING_DAYS = 365;
+            const days = Number.isFinite(parsedMaxDays)
+                ? Math.min(Math.max(parsedMaxDays, 1), MAX_UPCOMING_DAYS)
+                : 7;
             tasks = expandRecurringTasks(tasks, days, req.query.status);
-            console.log('[DEBUG] Total tasks after expansion:', tasks.length);
+            if (isDebugLoggingEnabled) {
+                console.log(
+                    '[DEBUG] Total tasks after expansion:',
+                    tasks.length
+                );
+            }
         }
 
         if (type === 'today') {

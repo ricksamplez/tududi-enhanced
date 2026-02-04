@@ -25,6 +25,17 @@ const packageJson = require('../../package.json');
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
+const resolveBackupFilePath = (backupsDir, backupPath) => {
+    const baseDir = path.resolve(backupsDir);
+    const resolvedPath = path.resolve(baseDir, backupPath);
+
+    if (!resolvedPath.startsWith(`${baseDir}${path.sep}`)) {
+        throw new Error('Invalid backup path');
+    }
+
+    return resolvedPath;
+};
+
 /**
  * Compare two semantic versions
  * @param {string} version1 - First version (e.g., "v0.88.0-dev.1")
@@ -839,7 +850,7 @@ async function getBackup(userId, backupUid) {
         }
 
         const backupsDir = await getBackupsDirectory();
-        const filePath = path.join(backupsDir, backup.file_path);
+        const filePath = resolveBackupFilePath(backupsDir, backup.file_path);
 
         // Read backup file
         const fileBuffer = await fs.readFile(filePath);
@@ -881,7 +892,7 @@ async function deleteBackup(userId, backupUid) {
         }
 
         const backupsDir = await getBackupsDirectory();
-        const filePath = path.join(backupsDir, backup.file_path);
+        const filePath = resolveBackupFilePath(backupsDir, backup.file_path);
 
         // Delete file from disk
         try {

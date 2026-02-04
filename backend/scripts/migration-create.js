@@ -70,7 +70,7 @@ module.exports = {
     // Add an index:
     // await queryInterface.addIndex('table_name', ['column_name']);
     
-    throw new Error('Migration not implemented yet!');
+    return Promise.resolve();
   },
 
   async down(queryInterface, Sequelize) {
@@ -86,7 +86,7 @@ module.exports = {
     // Remove an index:
     // await queryInterface.removeIndex('table_name', ['column_name']);
     
-    throw new Error('Rollback not implemented yet!');
+    return Promise.resolve();
   }
 };`;
 
