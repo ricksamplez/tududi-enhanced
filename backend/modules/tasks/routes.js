@@ -50,6 +50,7 @@ const {
 const { createSubtasks, updateSubtasks } = require('./operations/subtasks');
 const { handleCompletionStatus } = require('./operations/completion');
 const { captureOldValues, logTaskChanges } = require('./utils/logging');
+const scheduleDirtyService = require('../schedule/dirtyService');
 const {
     handleParentChildOnStatusChange,
 } = require('./operations/parent-child');
@@ -410,6 +411,12 @@ router.post('/task', async (req, res) => {
         const task = await taskRepository.create(taskAttributes);
         await updateTaskTags(task, tagsData, req.currentUser.id);
         await createSubtasks(task.id, subtasks, req.currentUser.id);
+        await scheduleDirtyService.markTaskCreated({
+            userId: req.currentUser.id,
+            task,
+            timezone: req.currentUser.timezone,
+            firstDayOfWeek: req.currentUser.first_day_of_week,
+        });
 
         const taskWithAssociations = await taskRepository.findById(task.id, {
             include: TASK_INCLUDES,
@@ -752,6 +759,30 @@ router.patch('/task/:uid', requireTaskWriteAccess, async (req, res) => {
                     eventError
                 );
             }
+        }
+
+        await scheduleDirtyService.markTaskUpdated({
+            userId: req.currentUser.id,
+            oldValues,
+            task,
+            timezone: req.currentUser.timezone,
+            firstDayOfWeek: req.currentUser.first_day_of_week,
+        });
+        const newStatus =
+            taskAttributes.status !== undefined
+                ? taskAttributes.status
+                : task.status;
+        if (
+            status !== undefined &&
+            scheduleDirtyService.isDoneStatus(newStatus) &&
+            !scheduleDirtyService.isDoneStatus(oldStatus)
+        ) {
+            await scheduleDirtyService.markTaskCompleted({
+                userId: req.currentUser.id,
+                taskId: task.id,
+                timezone: req.currentUser.timezone,
+                firstDayOfWeek: req.currentUser.first_day_of_week,
+            });
         }
 
         await updateTaskTags(task, tagsData, req.currentUser.id);
