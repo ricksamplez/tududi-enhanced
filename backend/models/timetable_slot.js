@@ -41,16 +41,17 @@ module.exports = (sequelize) => {
                     max: 1440,
                 },
             },
-            slot_type: {
-                type: DataTypes.STRING,
-                allowNull: false,
-                validate: {
-                    isIn: [['work', 'pause']],
-                },
-            },
             label: {
                 type: DataTypes.STRING,
                 allowNull: true,
+            },
+            area_id: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'areas',
+                    key: 'id',
+                },
             },
         },
         {
