@@ -126,6 +126,7 @@ const notificationsModule = require('./modules/notifications');
 const planningModule = require('./modules/planning');
 const projectsModule = require('./modules/projects');
 const quotesModule = require('./modules/quotes');
+const scheduleModule = require('./modules/schedule');
 const searchModule = require('./modules/search');
 const sharesModule = require('./modules/shares');
 const tagsModule = require('./modules/tags');
@@ -218,6 +219,7 @@ const registerApiRoutes = (basePath) => {
     app.use(basePath, notificationsModule.routes);
     app.use(basePath, timetableModule.routes);
     app.use(basePath, planningModule.routes);
+    app.use(basePath, scheduleModule.routes);
 };
 
 // Register routes at both /api and /api/v1 (if versioned) to maintain backwards compatibility

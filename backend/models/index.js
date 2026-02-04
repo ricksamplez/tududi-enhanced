@@ -69,6 +69,8 @@ const RecurringCompletion = require('./recurringCompletion')(sequelize);
 const TaskAttachment = require('./task_attachment')(sequelize);
 const Backup = require('./backup')(sequelize);
 const TimetableSlot = require('./timetable_slot')(sequelize);
+const ScheduleDay = require('./schedule_day')(sequelize);
+const ScheduleEntry = require('./schedule_entry')(sequelize);
 
 User.hasMany(Area, { foreignKey: 'user_id' });
 Area.belongsTo(User, { foreignKey: 'user_id' });
@@ -97,6 +99,14 @@ Project.belongsToMany(TimetableSlot, {
     otherKey: 'timetable_slot_id',
     as: 'timetableSlots',
 });
+
+User.hasMany(ScheduleDay, { foreignKey: 'user_id' });
+ScheduleDay.belongsTo(User, { foreignKey: 'user_id' });
+
+User.hasMany(ScheduleEntry, { foreignKey: 'user_id' });
+ScheduleEntry.belongsTo(User, { foreignKey: 'user_id' });
+ScheduleEntry.belongsTo(Task, { foreignKey: 'task_id' });
+ScheduleEntry.belongsTo(TimetableSlot, { foreignKey: 'slot_id' });
 
 User.hasMany(Task, { foreignKey: 'user_id' });
 Task.belongsTo(User, { foreignKey: 'user_id' });
@@ -230,4 +240,6 @@ module.exports = {
     TaskAttachment,
     Backup,
     TimetableSlot,
+    ScheduleDay,
+    ScheduleEntry,
 };
