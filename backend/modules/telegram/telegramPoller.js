@@ -486,6 +486,9 @@ const startPolling = () => {
             // Error polling Telegram
         }
     }, pollerState.pollInterval);
+    if (interval.unref) {
+        interval.unref();
+    }
 
     pollerState = {
         ...pollerState,

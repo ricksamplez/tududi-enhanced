@@ -12,7 +12,14 @@ function errorHandler(err, req, res, next) {
     if (process.env.NODE_ENV === 'development') {
         console.error(err);
     } else {
-        logError('Error:', err);
+        const shouldLog =
+            !(err instanceof AppError) ||
+            (err.statusCode && err.statusCode >= 500) ||
+            err.isOperational === false;
+
+        if (shouldLog) {
+            logError('Error:', err);
+        }
     }
 
     // Handle our custom AppError instances

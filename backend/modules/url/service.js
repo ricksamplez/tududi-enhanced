@@ -419,7 +419,9 @@ async function fetchUrlMetadata(url) {
             }
         }
     } catch (error) {
-        logError('Error fetching URL metadata via fetch:', error);
+        if (process.env.NODE_ENV !== 'test') {
+            logError('Error fetching URL metadata via fetch:', error);
+        }
     }
 
     const httpMetadata = await fetchMetadataViaHttp(normalizedUrl);
@@ -433,7 +435,9 @@ async function fetchUrlMetadata(url) {
             return proxyMetadata;
         }
     } catch (error) {
-        logError('Error fetching URL metadata via proxy:', error);
+        if (process.env.NODE_ENV !== 'test') {
+            logError('Error fetching URL metadata via proxy:', error);
+        }
     }
 
     return null;
