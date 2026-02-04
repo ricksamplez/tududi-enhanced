@@ -69,6 +69,16 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
             featureFlag: 'calendar',
         },
         {
+            path: '/timetable',
+            title: t('sidebar.timetable', 'Timetable'),
+            icon: <ClockIcon className="h-5 w-5" />,
+        },
+        {
+            path: '/planning',
+            title: t('sidebar.planning', 'Planning'),
+            icon: <CalendarIcon className="h-5 w-5" />,
+        },
+        {
             path: '/tasks?status=active',
             title: t('sidebar.allTasks', 'All Tasks'),
             icon: <ListBulletIcon className="h-5 w-5" />,
@@ -84,7 +94,13 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
     });
 
     const isActive = (path: string, query?: string) => {
-        if (path === '/inbox' || path === '/today' || path === '/calendar') {
+        if (
+            path === '/inbox' ||
+            path === '/today' ||
+            path === '/calendar' ||
+            path === '/timetable' ||
+            path === '/planning'
+        ) {
             const isPathMatch = location.pathname === path;
             return isPathMatch
                 ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'

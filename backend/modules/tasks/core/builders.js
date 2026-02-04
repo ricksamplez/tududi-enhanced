@@ -21,10 +21,36 @@ function buildTaskAttributes(body, userId, timezone, isUpdate = false) {
         dueDate = `${year}-${month}-${day}`;
     }
 
+    const normalizedDueTimeMinutes =
+        body.due_time_minutes === undefined
+            ? null
+            : body.due_time_minutes === null || body.due_time_minutes === ''
+              ? null
+              : Number(body.due_time_minutes);
+
+    const normalizedEstimatedDurationMinutes =
+        body.estimated_duration_minutes === undefined
+            ? null
+            : body.estimated_duration_minutes === null ||
+                body.estimated_duration_minutes === ''
+              ? null
+              : Number(body.estimated_duration_minutes);
+
+    const normalizedActualDurationMinutes =
+        body.actual_duration_minutes === undefined
+            ? null
+            : body.actual_duration_minutes === null ||
+                body.actual_duration_minutes === ''
+              ? null
+              : Number(body.actual_duration_minutes);
+
     const attrs = {
         name: body.name?.trim(),
         priority: parsePriority(body.priority),
         due_date: processDueDateForStorage(dueDate, timezone),
+        due_time_minutes: normalizedDueTimeMinutes,
+        estimated_duration_minutes: normalizedEstimatedDurationMinutes,
+        actual_duration_minutes: normalizedActualDurationMinutes,
         defer_until: processDeferUntilForStorage(body.defer_until, timezone),
         status: parseStatus(body.status),
         note: body.note,
@@ -69,12 +95,38 @@ function buildUpdateAttributes(body, task, timezone) {
         body.recurrence_type !== 'none' &&
         (task.recurrence_type === 'none' || !task.recurrence_type);
 
+    const normalizedDueTimeMinutes =
+        body.due_time_minutes === undefined
+            ? undefined
+            : body.due_time_minutes === null || body.due_time_minutes === ''
+              ? null
+              : Number(body.due_time_minutes);
+
+    const normalizedEstimatedDurationMinutes =
+        body.estimated_duration_minutes === undefined
+            ? undefined
+            : body.estimated_duration_minutes === null ||
+                body.estimated_duration_minutes === ''
+              ? null
+              : Number(body.estimated_duration_minutes);
+
+    const normalizedActualDurationMinutes =
+        body.actual_duration_minutes === undefined
+            ? undefined
+            : body.actual_duration_minutes === null ||
+                body.actual_duration_minutes === ''
+              ? null
+              : Number(body.actual_duration_minutes);
+
     const attrs = {
         name: body.name,
         priority:
             body.priority !== undefined
                 ? parsePriority(body.priority)
                 : undefined,
+        due_time_minutes: normalizedDueTimeMinutes,
+        estimated_duration_minutes: normalizedEstimatedDurationMinutes,
+        actual_duration_minutes: normalizedActualDurationMinutes,
         status:
             body.status !== undefined
                 ? parseStatus(body.status)

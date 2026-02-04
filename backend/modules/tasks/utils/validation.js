@@ -75,8 +75,56 @@ function validateDeferUntilAndDueDate(deferUntil, dueDate) {
     }
 }
 
+function validateDueTimeMinutes(dueTimeMinutes) {
+    if (dueTimeMinutes === undefined || dueTimeMinutes === null) {
+        return;
+    }
+
+    if (!Number.isInteger(dueTimeMinutes)) {
+        throw new Error('Due time must be a whole number of minutes.');
+    }
+
+    if (dueTimeMinutes < 0 || dueTimeMinutes > 1439) {
+        throw new Error('Due time must be between 0 and 1439 minutes.');
+    }
+}
+
+function validateEstimatedDurationMinutes(estimatedDurationMinutes) {
+    if (
+        estimatedDurationMinutes === undefined ||
+        estimatedDurationMinutes === null
+    ) {
+        return;
+    }
+
+    if (!Number.isInteger(estimatedDurationMinutes)) {
+        throw new Error('Estimated duration must be a whole number of minutes.');
+    }
+
+    if (estimatedDurationMinutes < 1 || estimatedDurationMinutes > 1440) {
+        throw new Error('Estimated duration must be between 1 and 1440 minutes.');
+    }
+}
+
+function validateActualDurationMinutes(actualDurationMinutes) {
+    if (actualDurationMinutes === undefined || actualDurationMinutes === null) {
+        return;
+    }
+
+    if (!Number.isInteger(actualDurationMinutes)) {
+        throw new Error('Actual duration must be a whole number of minutes.');
+    }
+
+    if (actualDurationMinutes < 1 || actualDurationMinutes > 1440) {
+        throw new Error('Actual duration must be between 1 and 1440 minutes.');
+    }
+}
+
 module.exports = {
     validateProjectAccess,
     validateParentTaskAccess,
     validateDeferUntilAndDueDate,
+    validateDueTimeMinutes,
+    validateEstimatedDurationMinutes,
+    validateActualDurationMinutes,
 };
