@@ -6,11 +6,10 @@
  * Provides calendar exports (ICS).
  */
 
-const { routes, publicRoutes } = require('./routes');
+const routes = require('./routes');
 const calendarService = require('./service');
 
 module.exports = {
     routes,
-    publicRoutes,
     calendarService,
 };
