@@ -69,6 +69,8 @@ const RecurringCompletion = require('./recurringCompletion')(sequelize);
 const TaskAttachment = require('./task_attachment')(sequelize);
 const Backup = require('./backup')(sequelize);
 const TimetableSlot = require('./timetable_slot')(sequelize);
+const ScheduleDay = require('./schedule_day')(sequelize);
+const ScheduleEntry = require('./schedule_entry')(sequelize);
 
 User.hasMany(Area, { foreignKey: 'user_id' });
 Area.belongsTo(User, { foreignKey: 'user_id' });
@@ -77,6 +79,34 @@ User.hasMany(Project, { foreignKey: 'user_id' });
 Project.belongsTo(User, { foreignKey: 'user_id' });
 Project.belongsTo(Area, { foreignKey: 'area_id', allowNull: true });
 Area.hasMany(Project, { foreignKey: 'area_id' });
+
+User.hasMany(TimetableSlot, { foreignKey: 'user_id' });
+TimetableSlot.belongsTo(User, { foreignKey: 'user_id' });
+TimetableSlot.belongsTo(Area, {
+    foreignKey: 'area_id',
+    allowNull: true,
+    as: 'area',
+});
+TimetableSlot.belongsToMany(Project, {
+    through: 'timetable_slot_projects',
+    foreignKey: 'timetable_slot_id',
+    otherKey: 'project_id',
+    as: 'projects',
+});
+Project.belongsToMany(TimetableSlot, {
+    through: 'timetable_slot_projects',
+    foreignKey: 'project_id',
+    otherKey: 'timetable_slot_id',
+    as: 'timetableSlots',
+});
+
+User.hasMany(ScheduleDay, { foreignKey: 'user_id' });
+ScheduleDay.belongsTo(User, { foreignKey: 'user_id' });
+
+User.hasMany(ScheduleEntry, { foreignKey: 'user_id' });
+ScheduleEntry.belongsTo(User, { foreignKey: 'user_id' });
+ScheduleEntry.belongsTo(Task, { foreignKey: 'task_id' });
+ScheduleEntry.belongsTo(TimetableSlot, { foreignKey: 'slot_id' });
 
 User.hasMany(Task, { foreignKey: 'user_id' });
 Task.belongsTo(User, { foreignKey: 'user_id' });
@@ -189,10 +219,6 @@ TaskAttachment.belongsTo(Task, { foreignKey: 'task_id' });
 User.hasMany(Backup, { foreignKey: 'user_id', as: 'Backups' });
 Backup.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 
-// Timetable associations
-User.hasMany(TimetableSlot, { foreignKey: 'user_id', as: 'TimetableSlots' });
-TimetableSlot.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
-
 module.exports = {
     sequelize,
     User,
@@ -214,4 +240,6 @@ module.exports = {
     TaskAttachment,
     Backup,
     TimetableSlot,
+    ScheduleDay,
+    ScheduleEntry,
 };

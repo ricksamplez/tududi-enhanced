@@ -1,8 +1,8 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-    const TimetableSlot = sequelize.define(
-        'TimetableSlot',
+    const ScheduleEntry = sequelize.define(
+        'ScheduleEntry',
         {
             id: {
                 type: DataTypes.INTEGER,
@@ -17,58 +17,60 @@ module.exports = (sequelize) => {
                     key: 'id',
                 },
             },
-            weekday: {
-                type: DataTypes.INTEGER,
+            date: {
+                type: DataTypes.DATEONLY,
                 allowNull: false,
-                validate: {
-                    min: 0,
-                    max: 6,
-                },
             },
             start_minute: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
-                validate: {
-                    min: 0,
-                    max: 1439,
-                },
             },
             end_minute: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
-                validate: {
-                    min: 1,
-                    max: 1440,
-                },
             },
-            label: {
-                type: DataTypes.STRING,
-                allowNull: true,
-            },
-            area_id: {
+            task_id: {
                 type: DataTypes.INTEGER,
-                allowNull: true,
+                allowNull: false,
                 references: {
-                    model: 'areas',
+                    model: 'tasks',
                     key: 'id',
                 },
             },
+            slot_id: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                references: {
+                    model: 'timetable_slots',
+                    key: 'id',
+                },
+            },
+            pinned: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+            locked: {
+                type: DataTypes.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
         },
         {
-            tableName: 'timetable_slots',
+            tableName: 'schedule_entries',
             indexes: [
                 {
-                    fields: ['user_id'],
+                    fields: ['user_id', 'date'],
                 },
                 {
-                    fields: ['user_id', 'weekday'],
+                    fields: ['task_id'],
                 },
                 {
-                    fields: ['user_id', 'weekday', 'start_minute'],
+                    fields: ['slot_id'],
                 },
             ],
         }
     );
 
-    return TimetableSlot;
+    return ScheduleEntry;
 };
