@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addDays, endOfWeek, format, parseISO } from 'date-fns';
 import { ScheduleDay, ScheduleItem, ScheduleWeek } from '../../entities/Schedule';
-import { fetchScheduleWeek } from '../../utils/scheduleService';
+import { fetchScheduleWeek, updateScheduleEntry } from '../../utils/scheduleService';
 import { useToast } from '../Shared/ToastContext';
 import { getCurrentUser } from '../../utils/userUtils';
 
@@ -43,6 +43,13 @@ const ScheduleView: React.FC = () => {
     const [week, setWeek] = useState<ScheduleWeek | null>(null);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [updatingEntryId, setUpdatingEntryId] = useState<number | null>(null);
+
+    const refreshWeek = async (startDate?: string) => {
+        const data = await fetchScheduleWeek(startDate);
+        setWeek(data);
+        return data;
+    };
 
     useEffect(() => {
         const loadWeek = async () => {
@@ -55,10 +62,7 @@ const ScheduleView: React.FC = () => {
                         ? currentUser.first_day_of_week
                         : 1;
                 const weekEnd = endOfWeek(today, { weekStartsOn });
-                const data = await fetchScheduleWeek(
-                    format(today, 'yyyy-MM-dd')
-                );
-                setWeek(data);
+                const data = await refreshWeek(format(today, 'yyyy-MM-dd'));
                 const initialDate = format(today, 'yyyy-MM-dd');
                 if (data.days.some((day) => day.date === initialDate)) {
                     setSelectedDate(initialDate);
@@ -78,6 +82,27 @@ const ScheduleView: React.FC = () => {
 
         loadWeek();
     }, [showErrorToast, t]);
+
+    const handleEntryUpdate = async (
+        entryId: number,
+        updates: { pinned?: boolean; locked?: boolean }
+    ) => {
+        setUpdatingEntryId(entryId);
+        try {
+            await updateScheduleEntry(entryId, updates);
+            await refreshWeek(selectedDate ?? undefined);
+        } catch (error) {
+            console.error('Failed to update schedule entry:', error);
+            showErrorToast(
+                t(
+                    'schedule.updateError',
+                    'Failed to update schedule entry.'
+                )
+            );
+        } finally {
+            setUpdatingEntryId(null);
+        }
+    };
 
     const availableDates = useMemo(() => {
         if (!week) return [];
@@ -285,25 +310,104 @@ const ScheduleView: React.FC = () => {
                                         <ul className="mt-2 space-y-2">
                                             {item.segments.map((segment) => (
                                                 <li
-                                                    key={`${segment.task_id}-${segment.start_minute}`}
-                                                    className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-gray-700 dark:text-gray-200"
+                                                    key={segment.entry_id}
+                                                    className="rounded bg-gray-100 dark:bg-gray-800 px-2 py-2 text-xs text-gray-700 dark:text-gray-200"
                                                 >
-                                                    <div className="font-semibold">
-                                                        {segment.task_name ||
-                                                            t(
-                                                                'schedule.task',
-                                                                'Task'
-                                                            )}{' '}
-                                                        #{segment.task_id}
-                                                    </div>
-                                                    <div>
-                                                        {toTime(
-                                                            segment.start_minute
-                                                        )}{' '}
-                                                        -{' '}
-                                                        {toTime(
-                                                            segment.end_minute
-                                                        )}
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="font-semibold">
+                                                                {segment.task_name ||
+                                                                    t(
+                                                                        'schedule.task',
+                                                                        'Task'
+                                                                    )}{' '}
+                                                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                    {segment.task_uid ||
+                                                                        `#${segment.task_id}`}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-[11px] text-gray-600 dark:text-gray-300">
+                                                                {toTime(
+                                                                    segment.start_minute
+                                                                )}{' '}
+                                                                -{' '}
+                                                                {toTime(
+                                                                    segment.end_minute
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-1 flex flex-wrap gap-2">
+                                                                {segment.pinned && (
+                                                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                                                                        {t(
+                                                                            'schedule.pinned',
+                                                                            'Pinned'
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                                {segment.locked && (
+                                                                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-200">
+                                                                        {t(
+                                                                            'schedule.locked',
+                                                                            'Locked'
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <button
+                                                                type="button"
+                                                                disabled={
+                                                                    updatingEntryId ===
+                                                                    segment.entry_id
+                                                                }
+                                                                onClick={() =>
+                                                                    handleEntryUpdate(
+                                                                        segment.entry_id,
+                                                                        {
+                                                                            pinned: !segment.pinned,
+                                                                        }
+                                                                    )
+                                                                }
+                                                                className="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            >
+                                                                {segment.pinned
+                                                                    ? t(
+                                                                          'schedule.unpin',
+                                                                          'Unpin'
+                                                                      )
+                                                                    : t(
+                                                                          'schedule.pin',
+                                                                          'Pin'
+                                                                      )}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={
+                                                                    updatingEntryId ===
+                                                                    segment.entry_id
+                                                                }
+                                                                onClick={() =>
+                                                                    handleEntryUpdate(
+                                                                        segment.entry_id,
+                                                                        {
+                                                                            locked: !segment.locked,
+                                                                        }
+                                                                    )
+                                                                }
+                                                                className="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            >
+                                                                {segment.locked
+                                                                    ? t(
+                                                                          'schedule.unlock',
+                                                                          'Unlock'
+                                                                      )
+                                                                    : t(
+                                                                          'schedule.lock',
+                                                                          'Lock'
+                                                                      )}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </li>
                                             ))}
