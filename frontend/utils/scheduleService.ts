@@ -39,3 +39,20 @@ export const fetchScheduleDay = async (date?: string): Promise<ScheduleDay> => {
     await handleAuthResponse(response, 'Failed to fetch schedule.');
     return await response.json();
 };
+
+export const updateScheduleEntry = async (
+    entryId: number,
+    updates: { pinned?: boolean; locked?: boolean }
+): Promise<ScheduleDay> => {
+    const response = await fetch(getApiPath(`schedule/entries/${entryId}`), {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+    });
+    await handleAuthResponse(response, 'Failed to update schedule entry.');
+    return await response.json();
+};

@@ -17,8 +17,12 @@ export type ScheduleSlotItem = {
     capacity_minutes: number;
     used_minutes: number;
     segments: {
+        entry_id: number;
         task_id: number;
-        task_name?: string | null;
+        task_name: string | null;
+        task_uid: string | null;
+        pinned: boolean;
+        locked: boolean;
         start_minute: number;
         end_minute: number;
         slot_id: number;

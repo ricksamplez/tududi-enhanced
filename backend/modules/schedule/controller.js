@@ -43,6 +43,22 @@ const scheduleController = {
             next(error);
         }
     },
+    async updateEntry(req, res, next) {
+        try {
+            const userId = requireUserId(req);
+            const timezone = req.currentUser?.timezone;
+            const entryId = Number(req.params.id);
+            const { pinned, locked } = req.body || {};
+            const result = await scheduleService.updateEntryFlags(userId, entryId, {
+                pinned,
+                locked,
+                timezone,
+            });
+            res.json(result);
+        } catch (error) {
+            next(error);
+        }
+    },
 };
 
 module.exports = scheduleController;

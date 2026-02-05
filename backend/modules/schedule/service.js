@@ -15,6 +15,7 @@ const {
     processDueDateForResponse,
     processDeferUntilForResponse,
 } = require('../../utils/timezone-utils');
+const { NotFoundError, ValidationError } = require('../../shared/errors');
 
 const EXCLUDED_STATUSES = [
     Task.STATUS.DONE,
@@ -109,7 +110,12 @@ const buildSlotItems = (slots, entriesBySlot) => {
             capacity_minutes: slot.end_minute - slot.start_minute,
             used_minutes: usedMinutes,
             segments: slotEntries.map((entry) => ({
+                entry_id: entry.id,
                 task_id: entry.task_id,
+                task_name: entry.Task?.name || null,
+                task_uid: entry.Task?.uid || null,
+                pinned: entry.pinned,
+                locked: entry.locked,
                 start_minute: entry.start_minute,
                 end_minute: entry.end_minute,
                 slot_id: entry.slot_id,
@@ -224,6 +230,54 @@ class ScheduleService {
         });
     }
 
+    async updateEntryFlags(userId, entryId, { pinned, locked, timezone }) {
+        if (pinned === undefined && locked === undefined) {
+            throw new ValidationError('Pinned or locked flag is required.');
+        }
+        const entry = await ScheduleEntry.findOne({
+            where: { id: entryId, user_id: userId },
+        });
+        if (!entry) {
+            throw new NotFoundError('Schedule entry not found.');
+        }
+        const updates = {};
+        if (pinned !== undefined) {
+            updates.pinned = Boolean(pinned);
+        }
+        if (locked !== undefined) {
+            updates.locked = Boolean(locked);
+        }
+        await entry.update(updates);
+
+        const safeTimezone = getSafeTimezone(timezone);
+        const dateMoment = moment
+            .tz(entry.date, 'YYYY-MM-DD', safeTimezone)
+            .startOf('day');
+        const dirtyReason =
+            pinned !== undefined ? 'pin_changed' : 'lock_changed';
+        const [dayRecord] = await ScheduleDay.findOrCreate({
+            where: { user_id: userId, date: entry.date },
+            defaults: {
+                user_id: userId,
+                date: entry.date,
+                timezone: safeTimezone,
+                cutoff_minute: null,
+                dirty: true,
+                dirty_reason: dirtyReason,
+            },
+        });
+        dayRecord.timezone = safeTimezone;
+        dayRecord.dirty = true;
+        dayRecord.dirty_reason = dirtyReason;
+        await dayRecord.save();
+
+        return await this.ensureDayPlanned(userId, {
+            dateMoment,
+            timezone: safeTimezone,
+            today: moment.tz(safeTimezone).startOf('day'),
+        });
+    }
+
     async ensureDayPlanned(userId, { dateMoment, timezone, today }) {
         return await withSqliteRetry(async () => {
             const dateString = dateMoment.format('YYYY-MM-DD');
@@ -232,6 +286,12 @@ class ScheduleService {
             const cutoffMinute = isToday
                 ? toMinuteOfDay(moment.tz(timezone))
                 : null;
+            const entryInclude = [
+                {
+                    model: Task,
+                    attributes: ['id', 'name', 'uid'],
+                },
+            ];
 
             const [dayRecord] = await ScheduleDay.findOrCreate({
                 where: { user_id: userId, date: dateString },
@@ -263,6 +323,7 @@ class ScheduleService {
 
             const existingEntries = await ScheduleEntry.findAll({
                 where: { user_id: userId, date: dateString },
+                include: entryInclude,
                 order: [['start_minute', 'ASC']],
             });
 
@@ -284,17 +345,22 @@ class ScheduleService {
 
             if (needsReplan) {
                 if (isToday) {
+                    const isTimeProtected = (entry) =>
+                        entry.end_minute <= cutoffMinute ||
+                        (entry.start_minute <= cutoffMinute &&
+                            entry.end_minute > cutoffMinute);
+                    const isPinnedOrLocked = (entry) =>
+                        entry.pinned || entry.locked;
                     protectedEntries = existingEntries.filter(
                         (entry) =>
-                            entry.end_minute <= cutoffMinute ||
-                            (entry.start_minute <= cutoffMinute &&
-                                entry.end_minute > cutoffMinute)
+                            isTimeProtected(entry) ||
+                            isPinnedOrLocked(entry)
                     );
                     const removableIds = existingEntries
                         .filter(
                             (entry) =>
                                 entry.start_minute >= cutoffMinute &&
-                                !protectedEntries.includes(entry)
+                                !isPinnedOrLocked(entry)
                         )
                         .map((entry) => entry.id);
                     if (removableIds.length > 0) {
@@ -304,10 +370,18 @@ class ScheduleService {
                     }
                     remainingEntries = protectedEntries;
                 } else {
-                    await ScheduleEntry.destroy({
-                        where: { user_id: userId, date: dateString },
-                    });
-                    remainingEntries = [];
+                    protectedEntries = existingEntries.filter(
+                        (entry) => entry.pinned || entry.locked
+                    );
+                    const removableIds = existingEntries
+                        .filter((entry) => !entry.pinned && !entry.locked)
+                        .map((entry) => entry.id);
+                    if (removableIds.length > 0) {
+                        await ScheduleEntry.destroy({
+                            where: { id: { [Op.in]: removableIds } },
+                        });
+                    }
+                    remainingEntries = protectedEntries;
                 }
             }
 
@@ -442,10 +516,20 @@ class ScheduleService {
 
             const newEntries = [];
             const unassignedEligible = [];
+            const preallocatedMinutes = protectedEntries.reduce(
+                (map, entry) => {
+                    const minutes = entry.end_minute - entry.start_minute;
+                    map.set(entry.task_id, (map.get(entry.task_id) || 0) + minutes);
+                    return map;
+                },
+                new Map()
+            );
 
             sortedTasks.forEach((task) => {
                 const dueTime = task.due_time_minutes;
                 const duration = task.estimated_duration_minutes;
+                const reservedMinutes = preallocatedMinutes.get(task.id) || 0;
+                const requiredMinutes = Math.max(0, duration - reservedMinutes);
                 const compatibleWindows = [];
 
                 const deferInfo = getDeferInfo(task, timezone, dateString);
@@ -456,6 +540,10 @@ class ScheduleService {
                         reason_message:
                             'Defer date blocks scheduling on this day.',
                     });
+                    return;
+                }
+
+                if (requiredMinutes === 0) {
                     return;
                 }
 
@@ -521,7 +609,7 @@ class ScheduleService {
                     (total, window) => total + (window.end - window.start),
                     0
                 );
-                if (totalAvailable < duration) {
+                if (totalAvailable < requiredMinutes) {
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
                         reason_code: 'NOT_ENOUGH_CAPACITY_BEFORE_DEADLINE',
@@ -531,7 +619,7 @@ class ScheduleService {
                     return;
                 }
 
-                let remaining = duration;
+                let remaining = requiredMinutes;
                 compatibleWindows.sort((a, b) => a.start - b.start);
                 compatibleWindows.forEach((window) => {
                     if (remaining <= 0) return;
@@ -573,6 +661,7 @@ class ScheduleService {
 
             const finalEntries = await ScheduleEntry.findAll({
                 where: { user_id: userId, date: dateString },
+                include: entryInclude,
                 order: [['start_minute', 'ASC']],
             });
 

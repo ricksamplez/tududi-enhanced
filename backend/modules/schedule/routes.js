@@ -7,5 +7,6 @@ const router = express.Router();
 
 router.get('/schedule/week', scheduleController.week);
 router.get('/schedule/day', scheduleController.day);
+router.patch('/schedule/entries/:id', scheduleController.updateEntry);
 
 module.exports = router;
