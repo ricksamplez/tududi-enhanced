@@ -98,11 +98,15 @@ function validateEstimatedDurationMinutes(estimatedDurationMinutes) {
     }
 
     if (!Number.isInteger(estimatedDurationMinutes)) {
-        throw new Error('Estimated duration must be a whole number of minutes.');
+        throw new Error(
+            'Estimated duration must be a whole number of minutes.'
+        );
     }
 
     if (estimatedDurationMinutes < 1 || estimatedDurationMinutes > 1440) {
-        throw new Error('Estimated duration must be between 1 and 1440 minutes.');
+        throw new Error(
+            'Estimated duration must be between 1 and 1440 minutes.'
+        );
     }
 }
 

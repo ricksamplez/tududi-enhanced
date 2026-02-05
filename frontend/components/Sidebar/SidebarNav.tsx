@@ -7,6 +7,7 @@ import {
     ListBulletIcon,
     ClockIcon,
     CalendarIcon,
+    ChartBarIcon,
 } from '@heroicons/react/24/solid';
 import { PlusCircleIcon } from '@heroicons/react/24/outline';
 import { useStore } from '../../store/useStore';
@@ -89,6 +90,11 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
             icon: <ListBulletIcon className="h-5 w-5" />,
             query: 'status=active',
         },
+        {
+            path: '/reports/time',
+            title: t('sidebar.timeReport', 'Time Report'),
+            icon: <ChartBarIcon className="h-5 w-5" />,
+        },
     ];
 
     const navLinks = allNavLinks.filter((link) => {
@@ -105,7 +111,8 @@ const SidebarNav: React.FC<SidebarNavProps> = ({
             path === '/calendar' ||
             path === '/timetable' ||
             path === '/planning' ||
-            path === '/schedule'
+            path === '/schedule' ||
+            path === '/reports/time'
         ) {
             const isPathMatch = location.pathname === path;
             return isPathMatch

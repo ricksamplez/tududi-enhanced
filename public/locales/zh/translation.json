@@ -55,7 +55,8 @@
     "createNew": "创建新项目",
     "views": "视图",
     "unpinView": "取消固定视图",
-    "pinView": "固定视图"
+    "pinView": "固定视图",
+    "timeReport": "Time Report"
   },
   "navigation": {
     "home": "首页",
@@ -376,6 +377,17 @@
         "area": "创建新区域",
         "tag": "创建新标签"
       }
+    },
+    "calendarFeed": {
+      "title": "Calendar subscription",
+      "description": "Subscribe in Google Calendar or Apple Calendar to see your Tududi tasks.",
+      "generateButton": "Generate calendar subscription link",
+      "rotateButton": "Rotate subscription link",
+      "copyButton": "Copy link",
+      "copied": "Copied",
+      "warning": "Rotating the link invalidates the previous subscription. The token is shown only once.",
+      "error": "Unable to load the calendar link right now.",
+      "copyError": "Copy failed. Please copy the link manually."
     }
   },
   "productivity": {
@@ -1380,5 +1392,29 @@
     "done_desc": "已完成并结束",
     "cancelled": "已取消",
     "cancelled_desc": "将不会完成"
+  },
+  "reports": {
+    "time": {
+      "title": "Time Report",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "refresh": "Refresh",
+      "error": "Unable to load the time report right now.",
+      "minutes": "min",
+      "estimatedTotal": "Estimated total",
+      "actualTotal": "Actual total",
+      "delta": "Delta",
+      "byProject": "Breakdown by project",
+      "project": "Project",
+      "area": "Area",
+      "estimated": "Estimated",
+      "actual": "Actual",
+      "noProject": "No project",
+      "missingData": "Missing data",
+      "noMissing": "All completed tasks have estimates and actuals.",
+      "missingLabel": "Missing",
+      "overruns": "Top overruns",
+      "noOverruns": "No overruns in this range."
+    }
   }
 }

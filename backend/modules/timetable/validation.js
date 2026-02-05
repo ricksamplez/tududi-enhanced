@@ -30,7 +30,6 @@ function validateSlotPayload(payload) {
     if (end_minute <= start_minute) {
         throw new ValidationError('End minute must be after start minute.');
     }
-
 }
 
 module.exports = {

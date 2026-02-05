@@ -121,11 +121,7 @@ class PlanningService {
                 return;
             }
 
-            const dueMoment = moment.tz(
-                dueDate,
-                'YYYY-MM-DD',
-                safeTimezone
-            );
+            const dueMoment = moment.tz(dueDate, 'YYYY-MM-DD', safeTimezone);
 
             if (dueMoment.isAfter(weekEnd, 'day')) {
                 unassignedTasks.push({

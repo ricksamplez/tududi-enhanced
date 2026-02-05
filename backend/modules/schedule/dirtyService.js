@@ -32,19 +32,17 @@ const isInHorizon = (dateString, today, weekEnd) => {
     );
 };
 
-const markDayDirty = async (
-    userId,
-    dateString,
-    timezone,
-    reason = null
-) => {
+const markDayDirty = async (userId, dateString, timezone, reason = null) => {
     if (!dateString) return;
     const [day] = await ScheduleDay.findOrCreate({
         where: { user_id: userId, date: dateString },
         defaults: { timezone, dirty: true, dirty_reason: reason },
     });
     if (!day.dirty || reason) {
-        await day.update({ dirty: true, dirty_reason: reason || day.dirty_reason });
+        await day.update({
+            dirty: true,
+            dirty_reason: reason || day.dirty_reason,
+        });
     }
 };
 
@@ -57,24 +55,14 @@ const isEligibleForScheduling = (task) =>
             task.estimated_duration_minutes !== undefined
     );
 
-const markTaskCreated = async ({
-    userId,
-    task,
-    timezone,
-    firstDayOfWeek,
-}) => {
+const markTaskCreated = async ({ userId, task, timezone, firstDayOfWeek }) => {
     if (!isEligibleForScheduling(task)) return;
     const safeTimezone = getSafeTimezone(timezone);
     const today = moment.tz(safeTimezone).startOf('day');
     const weekEnd = getWeekEnd(today, Number(firstDayOfWeek) || 0);
     const dueDate = normalizeDate(task.due_date, safeTimezone);
     if (isInHorizon(dueDate, today, weekEnd)) {
-        await markDayDirty(
-            userId,
-            dueDate,
-            safeTimezone,
-            'task_created'
-        );
+        await markDayDirty(userId, dueDate, safeTimezone, 'task_created');
     }
 };
 
@@ -112,8 +100,7 @@ const markTaskUpdated = async ({
         return;
     }
 
-    const dueTimeChanged =
-        oldValues.due_time_minutes !== task.due_time_minutes;
+    const dueTimeChanged = oldValues.due_time_minutes !== task.due_time_minutes;
     const durationChanged =
         oldValues.estimated_duration_minutes !==
         task.estimated_duration_minutes;
@@ -141,8 +128,7 @@ const markTaskCompleted = async ({
     const today = moment.tz(safeTimezone).startOf('day');
     const weekEnd = getWeekEnd(today, Number(firstDayOfWeek) || 0);
     const cutoffMinute = today
-        ? moment.tz(safeTimezone).hour() * 60 +
-          moment.tz(safeTimezone).minute()
+        ? moment.tz(safeTimezone).hour() * 60 + moment.tz(safeTimezone).minute()
         : null;
 
     const entries = await ScheduleEntry.findAll({

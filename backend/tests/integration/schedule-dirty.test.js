@@ -1,7 +1,12 @@
 const request = require('supertest');
 const moment = require('moment-timezone');
 const app = require('../../app');
-const { ScheduleDay, ScheduleEntry, Task, TimetableSlot } = require('../../models');
+const {
+    ScheduleDay,
+    ScheduleEntry,
+    Task,
+    TimetableSlot,
+} = require('../../models');
 const { createTestUser } = require('../helpers/testUtils');
 
 describe('Schedule dirty tracking', () => {

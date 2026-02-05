@@ -29,7 +29,9 @@ const ensureAreaOwnership = async (userId, areaId) => {
     if (Number.isNaN(normalized)) {
         throw new ValidationError('Area id must be a number.');
     }
-    const area = await Area.findOne({ where: { id: normalized, user_id: userId } });
+    const area = await Area.findOne({
+        where: { id: normalized, user_id: userId },
+    });
     if (!area) {
         throw new ValidationError('Area not found.');
     }

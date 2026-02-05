@@ -41,7 +41,11 @@ const timetableController = {
         try {
             const userId = requireUserId(req);
             const slotId = Number(req.params.id);
-            const slot = await timetableService.update(userId, slotId, req.body);
+            const slot = await timetableService.update(
+                userId,
+                slotId,
+                req.body
+            );
             res.json(slot);
         } catch (error) {
             next(error);

@@ -126,6 +126,7 @@ const notificationsModule = require('./modules/notifications');
 const planningModule = require('./modules/planning');
 const projectsModule = require('./modules/projects');
 const quotesModule = require('./modules/quotes');
+const reportsModule = require('./modules/reports');
 const scheduleModule = require('./modules/schedule');
 const searchModule = require('./modules/search');
 const sharesModule = require('./modules/shares');
@@ -197,6 +198,7 @@ healthPaths.forEach(registerHealthCheck);
 const registerApiRoutes = (basePath) => {
     app.use(basePath, authModule.routes);
     app.use(basePath, featureFlagsModule.routes);
+    app.use(basePath, calendarModule.publicRoutes);
 
     app.use(basePath, requireAuth);
     app.use(basePath, tasksModule.routes);
@@ -217,6 +219,7 @@ const registerApiRoutes = (basePath) => {
     app.use(basePath, searchModule.routes);
     app.use(basePath, viewsModule.routes);
     app.use(basePath, notificationsModule.routes);
+    app.use(basePath, reportsModule.routes);
     app.use(basePath, timetableModule.routes);
     app.use(basePath, planningModule.routes);
     app.use(basePath, scheduleModule.routes);
