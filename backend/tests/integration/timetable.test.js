@@ -83,7 +83,9 @@ describe('Timetable Routes', () => {
         expect(response.status).toBe(400);
         expect(response.body.error).toBe('One or more projects not found.');
 
-        const slots = await TimetableSlot.findAll({ where: { user_id: user.id } });
+        const slots = await TimetableSlot.findAll({
+            where: { user_id: user.id },
+        });
         expect(slots).toHaveLength(0);
     });
 });

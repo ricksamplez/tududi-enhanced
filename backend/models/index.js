@@ -71,6 +71,7 @@ const Backup = require('./backup')(sequelize);
 const TimetableSlot = require('./timetable_slot')(sequelize);
 const ScheduleDay = require('./schedule_day')(sequelize);
 const ScheduleEntry = require('./schedule_entry')(sequelize);
+const UserCalendarToken = require('./user_calendar_token')(sequelize);
 
 User.hasMany(Area, { foreignKey: 'user_id' });
 Area.belongsTo(User, { foreignKey: 'user_id' });
@@ -209,6 +210,15 @@ ApiToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(Notification, { foreignKey: 'user_id', as: 'Notifications' });
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
 
+User.hasOne(UserCalendarToken, {
+    foreignKey: 'user_id',
+    as: 'CalendarFeedToken',
+});
+UserCalendarToken.belongsTo(User, {
+    foreignKey: 'user_id',
+    as: 'User',
+});
+
 // TaskAttachment associations
 User.hasMany(TaskAttachment, { foreignKey: 'user_id' });
 TaskAttachment.belongsTo(User, { foreignKey: 'user_id' });
@@ -242,4 +252,5 @@ module.exports = {
     TimetableSlot,
     ScheduleDay,
     ScheduleEntry,
+    UserCalendarToken,
 };

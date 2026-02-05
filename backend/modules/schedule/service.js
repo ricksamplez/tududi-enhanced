@@ -39,7 +39,10 @@ const wait = (ms) =>
         setTimeout(resolve, ms);
     });
 
-const withSqliteRetry = async (operation, { retries = 3, delayMs = 50 } = {}) => {
+const withSqliteRetry = async (
+    operation,
+    { retries = 3, delayMs = 50 } = {}
+) => {
     let attempt = 0;
     while (attempt <= retries) {
         try {
@@ -140,7 +143,8 @@ const isSlotCompatible = (slot, task) => {
         return true;
     }
     if (taskProjectId) {
-        const slotProjectIds = slot.projects?.map((project) => project.id) || [];
+        const slotProjectIds =
+            slot.projects?.map((project) => project.id) || [];
         return slotProjectIds.includes(taskProjectId);
     }
     return false;
@@ -498,8 +502,7 @@ class ScheduleService {
                     ) {
                         unassignedEligible.push({
                             ...summarizeTask(task, timezone),
-                            reason_code:
-                                'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
+                            reason_code: 'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
                             reason_message:
                                 'Deadline is before the first available slot.',
                         });

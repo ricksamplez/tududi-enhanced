@@ -56,7 +56,9 @@ module.exports = {
                 unique: true,
             }
         );
-        await queryInterface.addIndex('timetable_slot_projects', ['project_id']);
+        await queryInterface.addIndex('timetable_slot_projects', [
+            'project_id',
+        ]);
     },
 
     async down(queryInterface) {

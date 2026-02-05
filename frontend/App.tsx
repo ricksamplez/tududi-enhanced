@@ -18,6 +18,7 @@ import Calendar from './components/Calendar';
 import Timetable from './components/Timetable';
 import WeekPlanning from './components/Planning/WeekPlanning';
 import ScheduleView from './components/Schedule/ScheduleView';
+import TimeReport from './components/Reports/TimeReport';
 import ProfileSettings from './components/Profile/ProfileSettings';
 import About from './components/About';
 import BackupRestore from './components/Backup/BackupRestore';
@@ -268,6 +269,10 @@ const App: React.FC = () => {
                             <Route
                                 path="/timetable"
                                 element={<Timetable />}
+                            />
+                            <Route
+                                path="/reports/time"
+                                element={<TimeReport />}
                             />
                             <Route
                                 path="/profile"

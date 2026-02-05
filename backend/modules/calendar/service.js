@@ -158,9 +158,7 @@ class CalendarService {
                     safeTimezone
                 );
                 const uid = `${task.uid}-defer@tududi`;
-                const summary = escapeIcsText(
-                    `Defer until: ${task.name}`
-                );
+                const summary = escapeIcsText(`Defer until: ${task.name}`);
                 const url = `${config.frontendUrl}/task/${task.uid}`;
                 events.push([
                     'BEGIN:VEVENT',

@@ -55,7 +55,8 @@
     "createNew": "Crear nuevo",
     "views": "Vistas",
     "unpinView": "Desanclar vista",
-    "pinView": "Anclar vista"
+    "pinView": "Anclar vista",
+    "timeReport": "Time Report"
   },
   "navigation": {
     "home": "Inicio",
@@ -294,6 +295,17 @@
         "area": "Crear nueva área",
         "tag": "Crear nueva etiqueta"
       }
+    },
+    "calendarFeed": {
+      "title": "Calendar subscription",
+      "description": "Subscribe in Google Calendar or Apple Calendar to see your Tududi tasks.",
+      "generateButton": "Generate calendar subscription link",
+      "rotateButton": "Rotate subscription link",
+      "copyButton": "Copy link",
+      "copied": "Copied",
+      "warning": "Rotating the link invalidates the previous subscription. The token is shown only once.",
+      "error": "Unable to load the calendar link right now.",
+      "copyError": "Copy failed. Please copy the link manually."
     }
   },
   "errors": {
@@ -1367,5 +1379,29 @@
     "done_desc": "Terminado y hecho",
     "cancelled": "Cancelado",
     "cancelled_desc": "No se completará"
+  },
+  "reports": {
+    "time": {
+      "title": "Time Report",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "refresh": "Refresh",
+      "error": "Unable to load the time report right now.",
+      "minutes": "min",
+      "estimatedTotal": "Estimated total",
+      "actualTotal": "Actual total",
+      "delta": "Delta",
+      "byProject": "Breakdown by project",
+      "project": "Project",
+      "area": "Area",
+      "estimated": "Estimated",
+      "actual": "Actual",
+      "noProject": "No project",
+      "missingData": "Missing data",
+      "noMissing": "All completed tasks have estimates and actuals.",
+      "missingLabel": "Missing",
+      "overruns": "Top overruns",
+      "noOverruns": "No overruns in this range."
+    }
   }
 }

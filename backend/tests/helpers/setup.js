@@ -31,6 +31,7 @@ beforeEach(async () => {
             'tasks_tags',
             'notes_tags',
             'projects_tags',
+            'user_calendar_tokens',
         ];
 
         await sequelize.query('PRAGMA foreign_keys = OFF');
