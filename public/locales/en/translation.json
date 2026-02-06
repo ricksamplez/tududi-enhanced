@@ -378,6 +378,8 @@
     "calendarFeed": {
       "title": "Calendar subscription",
       "description": "Subscribe in Google Calendar or Apple Calendar to see your Tududi tasks.",
+      "scheduleTitle": "Schedule calendar (timeboxed)",
+      "scheduleDescription": "Subscribe to see your planned schedule segments for the current week.",
       "generateButton": "Generate calendar subscription link",
       "rotateButton": "Rotate subscription link",
       "copyButton": "Copy link",

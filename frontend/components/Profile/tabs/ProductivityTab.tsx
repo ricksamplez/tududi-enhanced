@@ -16,10 +16,12 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
 }) => {
     const { t } = useTranslation();
     const [calendarLink, setCalendarLink] = useState<string | null>(null);
+    const [scheduleLink, setScheduleLink] = useState<string | null>(null);
     const [calendarTokenExists, setCalendarTokenExists] = useState(false);
     const [calendarMessage, setCalendarMessage] = useState<string | null>(null);
     const [calendarLoading, setCalendarLoading] = useState(false);
     const [calendarCopied, setCalendarCopied] = useState(false);
+    const [scheduleCopied, setScheduleCopied] = useState(false);
 
     if (!isActive) return null;
 
@@ -28,10 +30,16 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
             getApiPath(`calendar/feed/${token}.ics`),
             window.location.origin
         ).toString();
+    const buildScheduleCalendarUrl = (token: string) =>
+        new URL(
+            getApiPath(`calendar/feed/${token}/schedule.ics`),
+            window.location.origin
+        ).toString();
 
     const handleCalendarTokenRequest = async () => {
         setCalendarLoading(true);
         setCalendarCopied(false);
+        setScheduleCopied(false);
         setCalendarMessage(null);
 
         try {
@@ -50,8 +58,10 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
             setCalendarTokenExists(Boolean(data.exists));
             if (data.token) {
                 setCalendarLink(buildCalendarUrl(data.token));
+                setScheduleLink(buildScheduleCalendarUrl(data.token));
             } else {
                 setCalendarLink(null);
+                setScheduleLink(null);
             }
             if (data.message) {
                 setCalendarMessage(data.message);
@@ -71,6 +81,7 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
     const handleCalendarTokenRotate = async () => {
         setCalendarLoading(true);
         setCalendarCopied(false);
+        setScheduleCopied(false);
         setCalendarMessage(null);
 
         try {
@@ -92,6 +103,7 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
             const data = await response.json();
             setCalendarTokenExists(true);
             setCalendarLink(buildCalendarUrl(data.token));
+            setScheduleLink(buildScheduleCalendarUrl(data.token));
         } catch {
             setCalendarMessage(
                 t(
@@ -109,6 +121,21 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
         try {
             await navigator.clipboard.writeText(calendarLink);
             setCalendarCopied(true);
+        } catch {
+            setCalendarMessage(
+                t(
+                    'profile.calendarFeed.copyError',
+                    'Copy failed. Please copy the link manually.'
+                )
+            );
+        }
+    };
+
+    const handleCopyScheduleLink = async () => {
+        if (!scheduleLink) return;
+        try {
+            await navigator.clipboard.writeText(scheduleLink);
+            setScheduleCopied(true);
         } catch {
             setCalendarMessage(
                 t(
@@ -243,6 +270,80 @@ const ProductivityTab: React.FC<ProductivityTabProps> = ({
                             <p className="text-xs text-red-600 dark:text-red-400">
                                 {calendarMessage}
                             </p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="py-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex flex-col gap-3">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {t(
+                                    'profile.calendarFeed.scheduleTitle',
+                                    'Schedule calendar (timeboxed)'
+                                )}
+                            </label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {t(
+                                    'profile.calendarFeed.scheduleDescription',
+                                    'Subscribe to see your planned schedule segments for the current week.'
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                                type="button"
+                                disabled={calendarLoading}
+                                onClick={
+                                    calendarTokenExists
+                                        ? handleCalendarTokenRotate
+                                        : handleCalendarTokenRequest
+                                }
+                                className={`inline-flex items-center justify-center px-4 py-2 rounded-md text-white ${
+                                    calendarLoading
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-500'
+                                }`}
+                            >
+                                {calendarLoading
+                                    ? t('common.loading', 'Loading...')
+                                    : calendarTokenExists
+                                      ? t(
+                                            'profile.calendarFeed.rotateButton',
+                                            'Rotate subscription link'
+                                        )
+                                      : t(
+                                            'profile.calendarFeed.generateButton',
+                                            'Generate calendar subscription link'
+                                        )}
+                            </button>
+                            {scheduleLink && (
+                                <button
+                                    type="button"
+                                    onClick={handleCopyScheduleLink}
+                                    className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                    {scheduleCopied
+                                        ? t(
+                                              'profile.calendarFeed.copied',
+                                              'Copied'
+                                          )
+                                        : t(
+                                              'profile.calendarFeed.copyButton',
+                                              'Copy link'
+                                          )}
+                                </button>
+                            )}
+                        </div>
+
+                        {scheduleLink && (
+                            <input
+                                type="text"
+                                readOnly
+                                value={scheduleLink}
+                                className="w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm px-3 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                            />
                         )}
                     </div>
                 </div>

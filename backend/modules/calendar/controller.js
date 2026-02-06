@@ -29,6 +29,23 @@ const calendarController = {
             next(error);
         }
     },
+    async exportScheduleIcs(req, res, next) {
+        try {
+            requireUserId(req);
+            const user = req.currentUser;
+            const ics = await calendarService.buildScheduleIcs(user, {
+                startDate: req.query.startDate,
+            });
+            res.set({
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition':
+                    'attachment; filename="tududi-schedule.ics"',
+            });
+            res.send(ics);
+        } catch (error) {
+            next(error);
+        }
+    },
     async getFeedToken(req, res, next) {
         try {
             const userId = requireUserId(req);
@@ -85,6 +102,44 @@ const calendarController = {
             res.set({
                 'Content-Type': 'text/calendar; charset=utf-8',
                 'Content-Disposition': 'inline; filename="tududi.ics"',
+            });
+            res.send(ics);
+        } catch (error) {
+            next(error);
+        }
+    },
+    async publicScheduleFeed(req, res, next) {
+        try {
+            const token = req.params.token;
+            if (!token) {
+                res.status(404).send('Not Found');
+                return;
+            }
+
+            const tokenHash = feedTokenService.hashToken(token);
+            const tokenRecord = await UserCalendarToken.findOne({
+                where: { token_hash: tokenHash },
+                include: [
+                    {
+                        model: User,
+                        as: 'User',
+                        attributes: ['id', 'timezone', 'first_day_of_week'],
+                    },
+                ],
+            });
+
+            if (!tokenRecord || !tokenRecord.User) {
+                res.status(404).send('Not Found');
+                return;
+            }
+
+            const ics = await calendarService.buildScheduleIcs(
+                tokenRecord.User
+            );
+            res.set({
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition':
+                    'inline; filename="tududi-schedule.ics"',
             });
             res.send(ics);
         } catch (error) {
