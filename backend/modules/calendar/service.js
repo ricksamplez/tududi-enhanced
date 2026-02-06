@@ -2,8 +2,9 @@
 
 const moment = require('moment-timezone');
 const { Op } = require('sequelize');
-const { Task } = require('../../models');
+const { ScheduleEntry, Task } = require('../../models');
 const config = require('../../config/config').getConfig();
+const scheduleService = require('../schedule/service');
 const {
     getSafeTimezone,
     processDueDateForResponse,
@@ -44,6 +45,15 @@ const buildTimedDates = (date, minutes, durationMinutes, timezone) => {
         start: formatUtcDateTime(start),
         end: formatUtcDateTime(end),
     };
+};
+
+const getWeekStart = (startDate, firstDayOfWeek, timezone) => {
+    const base = startDate
+        ? moment.tz(startDate, 'YYYY-MM-DD', timezone).startOf('day')
+        : moment.tz(timezone).startOf('day');
+    const weekday = base.day();
+    const diff = (weekday - firstDayOfWeek + 7) % 7;
+    return base.clone().subtract(diff, 'days');
 };
 
 class CalendarService {
@@ -180,6 +190,102 @@ class CalendarService {
             'METHOD:PUBLISH',
             'PRODID:-//Tududi//EN',
             'X-WR-CALNAME:Tududi Tasks',
+            ...events.flat(),
+            'END:VCALENDAR',
+        ];
+
+        return `${lines.join('\r\n')}\r\n`;
+    }
+
+    async buildScheduleIcs(user, { startDate } = {}) {
+        const safeTimezone = getSafeTimezone(user?.timezone);
+        const firstDayOfWeek = Number(user?.first_day_of_week) || 0;
+        const rangeStart = startDate
+            ? moment.tz(startDate, 'YYYY-MM-DD', safeTimezone).startOf('day')
+            : moment.tz(safeTimezone).startOf('day');
+        const weekStart = getWeekStart(
+            rangeStart.format('YYYY-MM-DD'),
+            firstDayOfWeek,
+            safeTimezone
+        );
+        const weekEnd = weekStart.clone().add(6, 'days');
+        const scheduleStart = moment.max(rangeStart, weekStart);
+
+        await scheduleService.getWeekSchedule(user.id, {
+            startDate: weekStart.format('YYYY-MM-DD'),
+            timezone: safeTimezone,
+            firstDayOfWeek,
+        });
+
+        const entries = await ScheduleEntry.findAll({
+            where: {
+                user_id: user.id,
+                date: {
+                    [Op.between]: [
+                        scheduleStart.format('YYYY-MM-DD'),
+                        weekEnd.format('YYYY-MM-DD'),
+                    ],
+                },
+            },
+            include: [
+                {
+                    model: Task,
+                    attributes: ['id', 'name', 'uid'],
+                },
+            ],
+            order: [
+                ['date', 'ASC'],
+                ['start_minute', 'ASC'],
+            ],
+        });
+
+        const nowStamp = formatUtcDateTime(moment());
+        const events = entries
+            .filter((entry) => entry.Task)
+            .map((entry) => {
+                const durationMinutes =
+                    entry.end_minute - entry.start_minute;
+                const { start, end } = buildTimedDates(
+                    entry.date,
+                    entry.start_minute,
+                    durationMinutes,
+                    safeTimezone
+                );
+                const task = entry.Task;
+                const uid = `${task.uid}-${entry.date}-${entry.start_minute}-${entry.end_minute}@tududi-schedule`;
+                const summary = escapeIcsText(task.name);
+                const url = `${config.frontendUrl}/task/${task.uid}`;
+                const descriptionParts = ['Scheduled segment'];
+                if (entry.pinned) {
+                    descriptionParts.push('Pinned');
+                }
+                if (entry.locked) {
+                    descriptionParts.push('Locked');
+                }
+                const description = escapeIcsText(
+                    descriptionParts.join(' • ')
+                );
+
+                return [
+                    'BEGIN:VEVENT',
+                    `UID:${uid}`,
+                    `DTSTAMP:${nowStamp}`,
+                    `SUMMARY:${summary}`,
+                    `DTSTART:${start}`,
+                    `DTEND:${end}`,
+                    `URL:${escapeIcsText(url)}`,
+                    `DESCRIPTION:${description}`,
+                    'END:VEVENT',
+                ];
+            });
+
+        const lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'PRODID:-//Tududi//EN',
+            'X-WR-CALNAME:Tududi Schedule',
             ...events.flat(),
             'END:VCALENDAR',
         ];
