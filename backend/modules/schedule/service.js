@@ -142,6 +142,79 @@ const subtractWindow = (windows, blockStart, blockEnd) => {
     return next;
 };
 
+const buildCompatibleRuns = (slotWindows, task) => {
+    const runs = [];
+    let currentRun = null;
+    slotWindows.forEach((slotWindow) => {
+        if (isSlotCompatible(slotWindow.slot, task)) {
+            if (!currentRun) {
+                currentRun = [];
+            }
+            currentRun.push(slotWindow);
+        } else if (currentRun) {
+            runs.push(currentRun);
+            currentRun = null;
+        }
+    });
+    if (currentRun) {
+        runs.push(currentRun);
+    }
+    return runs;
+};
+
+const getAdjustedWindow = (window, deferMinute, dueTime) => {
+    let start = window.start;
+    if (deferMinute !== null) {
+        start = Math.max(start, deferMinute);
+    }
+    const end = Math.min(window.end, dueTime);
+    if (end <= start) {
+        return null;
+    }
+    return { start, end };
+};
+
+const planRunAllocation = (runSlots, requiredMinutes, deferMinute, dueTime) => {
+    let remaining = requiredMinutes;
+    let totalAvailable = 0;
+    const segments = [];
+    let finishMinute = null;
+
+    runSlots.forEach((slotWindow) => {
+        const sortedWindows = [...slotWindow.windows].sort(
+            (a, b) => a.start - b.start
+        );
+        sortedWindows.forEach((window) => {
+            const adjusted = getAdjustedWindow(window, deferMinute, dueTime);
+            if (!adjusted) {
+                return;
+            }
+            totalAvailable += adjusted.end - adjusted.start;
+            if (remaining <= 0) {
+                return;
+            }
+            const available = adjusted.end - adjusted.start;
+            const allocation = Math.min(remaining, available);
+            const segmentEnd = adjusted.start + allocation;
+            segments.push({
+                slotWindow,
+                start: adjusted.start,
+                end: segmentEnd,
+            });
+            finishMinute = segmentEnd;
+            remaining -= allocation;
+        });
+    });
+
+    return {
+        segments,
+        remaining,
+        totalAvailable,
+        finishMinute,
+        segmentCount: segments.length,
+    };
+};
+
 const isSlotCompatible = (slot, task) => {
     const taskProjectId = task.project_id;
     const taskProjectAreaId = task.project?.area_id || null;
@@ -530,7 +603,6 @@ class ScheduleService {
                 const duration = task.estimated_duration_minutes;
                 const reservedMinutes = preallocatedMinutes.get(task.id) || 0;
                 const requiredMinutes = Math.max(0, duration - reservedMinutes);
-                const compatibleWindows = [];
 
                 const deferInfo = getDeferInfo(task, timezone, dateString);
                 if (deferInfo.blocked) {
@@ -547,110 +619,123 @@ class ScheduleService {
                     return;
                 }
 
-                slotWindows.forEach((slotWindow) => {
-                    if (!isSlotCompatible(slotWindow.slot, task)) {
-                        return;
-                    }
-                    slotWindow.windows.forEach((window) => {
-                        let start = window.start;
-                        if (deferInfo.deferMinute !== null) {
-                            start = Math.max(start, deferInfo.deferMinute);
-                        }
-                        const end = Math.min(window.end, dueTime);
-                        if (end > start) {
-                            compatibleWindows.push({
-                                slotWindow,
-                                start,
-                                end,
-                            });
-                        }
-                    });
-                });
-
-                if (compatibleWindows.length === 0) {
-                    const earliestSlotStart = slotWindows
-                        .filter((slotWindow) =>
-                            isSlotCompatible(slotWindow.slot, task)
-                        )
-                        .map((slotWindow) => slotWindow.slot.start_minute)
-                        .sort((a, b) => a - b)[0];
-                    if (
-                        deferInfo.deferMinute !== null &&
-                        deferInfo.deferMinute >= dueTime
-                    ) {
-                        unassignedEligible.push({
-                            ...summarizeTask(task, timezone),
-                            reason_code: 'DEFER_UNTIL_BLOCKS',
-                            reason_message:
-                                'Defer time is after the task deadline.',
-                        });
-                    } else if (
-                        earliestSlotStart !== undefined &&
-                        earliestSlotStart >= dueTime
-                    ) {
-                        unassignedEligible.push({
-                            ...summarizeTask(task, timezone),
-                            reason_code: 'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
-                            reason_message:
-                                'Deadline is before the first available slot.',
-                        });
-                    } else {
-                        unassignedEligible.push({
-                            ...summarizeTask(task, timezone),
-                            reason_code: 'NO_MATCHING_SLOT',
-                            reason_message:
-                                'No compatible timetable slot for this task.',
-                        });
-                    }
-                    return;
-                }
-
-                const totalAvailable = compatibleWindows.reduce(
-                    (total, window) => total + (window.end - window.start),
-                    0
+                const compatibleSlotWindows = slotWindows.filter(
+                    (slotWindow) => isSlotCompatible(slotWindow.slot, task)
                 );
-                if (totalAvailable < requiredMinutes) {
+
+                if (
+                    deferInfo.deferMinute !== null &&
+                    deferInfo.deferMinute >= dueTime
+                ) {
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
-                        reason_code: 'NOT_ENOUGH_CAPACITY_BEFORE_DEADLINE',
+                        reason_code: 'DEFER_UNTIL_BLOCKS',
                         reason_message:
-                            'Not enough capacity before the deadline.',
+                            'Defer time is after the task deadline.',
                     });
                     return;
                 }
 
-                let remaining = requiredMinutes;
-                compatibleWindows.sort((a, b) => a.start - b.start);
-                compatibleWindows.forEach((window) => {
-                    if (remaining <= 0) return;
-                    const available = window.end - window.start;
-                    if (available <= 0) return;
-                    const allocation = Math.min(remaining, available);
-                    const segmentEnd = window.start + allocation;
-                    newEntries.push({
-                        user_id: userId,
-                        date: dateString,
-                        start_minute: window.start,
-                        end_minute: segmentEnd,
-                        task_id: task.id,
-                        slot_id: window.slotWindow.slot.id,
+                if (compatibleSlotWindows.length === 0) {
+                    unassignedEligible.push({
+                        ...summarizeTask(task, timezone),
+                        reason_code: 'NO_MATCHING_SLOT',
+                        reason_message:
+                            'No compatible timetable slot for this task.',
                     });
-                    window.slotWindow.windows = subtractWindow(
-                        window.slotWindow.windows,
-                        window.start,
-                        segmentEnd
+                    return;
+                }
+
+                const earliestSlotStart = compatibleSlotWindows
+                    .map((slotWindow) => slotWindow.slot.start_minute)
+                    .sort((a, b) => a - b)[0];
+                if (earliestSlotStart !== undefined && earliestSlotStart >= dueTime) {
+                    unassignedEligible.push({
+                        ...summarizeTask(task, timezone),
+                        reason_code: 'DEADLINE_BEFORE_FIRST_AVAILABLE_SLOT',
+                        reason_message:
+                            'Deadline is before the first available slot.',
+                    });
+                    return;
+                }
+
+                const compatibleRuns = buildCompatibleRuns(slotWindows, task);
+                let totalAvailable = 0;
+                let bestPlan = null;
+
+                compatibleRuns.forEach((runSlots) => {
+                    const plan = planRunAllocation(
+                        runSlots,
+                        requiredMinutes,
+                        deferInfo.deferMinute,
+                        dueTime
                     );
-                    remaining -= allocation;
+                    totalAvailable += plan.totalAvailable;
+                    if (plan.totalAvailable < requiredMinutes) {
+                        return;
+                    }
+                    const slack = plan.totalAvailable - requiredMinutes;
+                    const candidate = {
+                        ...plan,
+                        slack,
+                    };
+                    if (!bestPlan) {
+                        bestPlan = candidate;
+                        return;
+                    }
+                    if (candidate.finishMinute < bestPlan.finishMinute) {
+                        bestPlan = candidate;
+                        return;
+                    }
+                    if (candidate.finishMinute > bestPlan.finishMinute) {
+                        return;
+                    }
+                    if (candidate.segmentCount < bestPlan.segmentCount) {
+                        bestPlan = candidate;
+                        return;
+                    }
+                    if (candidate.segmentCount > bestPlan.segmentCount) {
+                        return;
+                    }
+                    if (candidate.slack < bestPlan.slack) {
+                        bestPlan = candidate;
+                    }
                 });
 
-                if (remaining > 0) {
+                if (!bestPlan) {
+                    if (totalAvailable < requiredMinutes) {
+                        unassignedEligible.push({
+                            ...summarizeTask(task, timezone),
+                            reason_code: 'NOT_ENOUGH_CAPACITY_BEFORE_DEADLINE',
+                            reason_message:
+                                'Not enough capacity before the deadline.',
+                        });
+                        return;
+                    }
                     unassignedEligible.push({
                         ...summarizeTask(task, timezone),
                         reason_code: 'SLOT_FRAGMENTATION_TOO_SMALL',
                         reason_message:
                             'Available slots are too fragmented to fit the task.',
                     });
+                    return;
                 }
+
+                bestPlan.segments.forEach((segment) => {
+                    newEntries.push({
+                        user_id: userId,
+                        date: dateString,
+                        start_minute: segment.start,
+                        end_minute: segment.end,
+                        task_id: task.id,
+                        slot_id: segment.slotWindow.slot.id,
+                    });
+                    segment.slotWindow.windows = subtractWindow(
+                        segment.slotWindow.windows,
+                        segment.start,
+                        segment.end
+                    );
+                });
             });
 
             if (newEntries.length > 0) {
